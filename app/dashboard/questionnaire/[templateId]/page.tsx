@@ -52,12 +52,12 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
     redirect("/dashboard/questions")
   }
 
-  let companyIdForSave = companyId || ""
+  let companyIdForSave: string | null = null
   let holdingIdForSave: string | null = null
   let company: any = null
 
   if (companyId) {
-    // First try to find in companies table
+    // First try to find in companies table (real companies)
     const { data: companyData } = await adminClient
       .from("companies")
       .select("id, name, cnpj, holding_id")
@@ -65,11 +65,12 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       .maybeSingle()
 
     if (companyData) {
+      // This is a COMPANY - save both company_id and holding_id
       company = companyData
       companyIdForSave = companyData.id
       holdingIdForSave = companyData.holding_id || null
     } else {
-      // Not in companies table, check if it's an organization and use it directly
+      // Not in companies table, check if it's an organization (holding)
       const { data: organizationData } = await adminClient
         .from("organizations")
         .select("id, name, cnpj, holding_id, type")
@@ -77,16 +78,16 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
         .maybeSingle()
 
       if (organizationData) {
-        // Use organization ID directly as company_id
-        companyIdForSave = organizationData.id
-        holdingIdForSave = organizationData.holding_id || null
+        // This is a HOLDING/ORGANIZATION - only save holding_id, NOT company_id
         company = organizationData
+        companyIdForSave = null // Don't save company_id for holdings
+        holdingIdForSave = organizationData.id // Use org ID as holding_id
       }
     }
   }
 
-  // Fallback: try from user's profile organization
-  if (!companyIdForSave) {
+  // Fallback: try from user's profile organization (only if no company was found)
+  if (!companyIdForSave && !holdingIdForSave) {
     const { data: userProfile } = await adminClient
       .from("profiles")
       .select("organization_id")
@@ -94,17 +95,22 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       .maybeSingle()
 
     if (userProfile?.organization_id) {
-      companyIdForSave = userProfile.organization_id
-
       const { data: orgData } = await adminClient
         .from("organizations")
-        .select("id, name, holding_id")
+        .select("id, name, holding_id, type")
         .eq("id", userProfile.organization_id)
         .maybeSingle()
 
       if (orgData) {
-        holdingIdForSave = orgData.holding_id || null
         company = orgData
+        // If it's a holding, don't set company_id
+        if (orgData.type === "holding") {
+          companyIdForSave = null
+          holdingIdForSave = orgData.id
+        } else {
+          companyIdForSave = orgData.id
+          holdingIdForSave = orgData.holding_id || null
+        }
       }
     }
   }
@@ -205,9 +211,18 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   console.log("[v0] Template ID:", templateId)
 
   if (!isGestor) {
-    // Usuários regulares só veem suas próprias respostas
+    // Usuários regulares só veem suas próprias respostas PARA A EMPRESA ESPECÍFICA
     answersQuery = answersQuery.eq("user_id", user.id)
-    console.log("[v0] FILTRO: Usuário regular - filtrando por user_id")
+    
+    // IMPORTANTE: Filtrar por company_id para separar respostas de empresas diferentes
+    if (companyIdForSave) {
+      answersQuery = answersQuery.eq("company_id", companyIdForSave)
+      console.log("[v0] FILTRO: Usuário regular - filtrando por user_id E company_id:", companyIdForSave)
+    } else {
+      // Se não tiver company_id, filtrar por respostas sem company_id (legado)
+      answersQuery = answersQuery.is("company_id", null)
+      console.log("[v0] FILTRO: Usuário regular - filtrando por user_id e company_id IS NULL")
+    }
   } else {
     // GESTOR: SEM FILTROS - VER TODAS AS RESPOSTAS DO TEMPLATE
     console.log("[v0] FILTRO: Gestor - SEM FILTROS, buscando TODAS as respostas do template")

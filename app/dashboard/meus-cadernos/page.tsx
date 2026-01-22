@@ -476,8 +476,8 @@ export default async function MeusCadernosPage() {
                         <div className="divide-y divide-border/50">
                           {holding.directCadernos.map((caderno: any) => (
                             <Link
-                              key={`${caderno.id}_${caderno.organization_id}`}
-                              href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.organization_id}`}
+                              key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
+                              href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || caderno.organization_id}`}
                               className="flex items-center justify-between p-4 hover:bg-background/50 transition-colors group"
                             >
                               <div className="flex items-center gap-3">
@@ -585,8 +585,8 @@ export default async function MeusCadernosPage() {
                           <div className="divide-y divide-border/50">
                             {company.cadernos.map((caderno: any) => (
                               <Link
-                                key={`${caderno.id}_${caderno.organization_id}`}
-                                href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.organization_id}`}
+                                key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
+                                href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || company.id}`}
                                 className="flex items-center justify-between p-4 hover:bg-background/50 transition-colors group"
                               >
                                 <div className="flex items-center gap-3">

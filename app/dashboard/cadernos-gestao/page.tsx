@@ -1,0 +1,302 @@
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { redirect } from "next/navigation"
+import { CadernosGestaoClient } from "@/components/cadernos/cadernos-gestao-client"
+import { AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+
+export default async function CadernosGestaoPage() {
+  const supabase = await createClient()
+  const adminClient = createAdminClient()
+
+  let user
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (error: any) {
+    // Ignore AbortError - this happens when navigation is cancelled
+    if (error?.name === "AbortError") {
+      console.log("[v0] Auth request aborted (navigation cancelled)")
+      return null
+    }
+    throw error
+  }
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  let profile
+  try {
+    const { data } = await adminClient.from("profiles").select("*").eq("id", user.id).single()
+    profile = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      console.log("[v0] Profile fetch aborted (navigation cancelled)")
+      return null
+    }
+    console.error("[v0] Error fetching profile:", error)
+  }
+
+  console.log("[v0] Cadernos Gestao - User profile:", {
+    userId: user.id,
+    role: profile?.role,
+    orgId: profile?.organization_id,
+  })
+
+  // Qualquer usuário autenticado pode acessar esta página para gerenciar seus cadernos
+  if (!profile) {
+    redirect("/dashboard")
+  }
+
+  let userHoldingIds: string[] = []
+  const allowedOrgIds: string[] = []
+
+  // Se for user/revisor, buscar as organizations que ele pertence
+  if (profile.role === "holding_admin" || profile.role === "user" || profile.role === "revisor") {
+    if (profile.role === "holding_admin") {
+      let memberships
+      try {
+        const { data } = await adminClient.from("organization_members").select("organization_id").eq("user_id", user.id)
+        memberships = data
+      } catch (error: any) {
+        if (error?.name === "AbortError") {
+          console.log("[v0] Memberships fetch aborted (navigation cancelled)")
+          return null
+        }
+        console.error("[v0] Error fetching memberships:", error)
+      }
+
+      if (!memberships || memberships.length === 0) {
+        console.error("[v0] Holding admin user has no holdings assigned via organization_members")
+        return (
+          <div className="min-h-screen bg-background p-6">
+            <div className="mx-auto max-w-2xl">
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-8">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-foreground">Configuração Incompleta</h2>
+                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                      Seu usuário é um <strong className="text-foreground">Gestor de Holding</strong>, mas ainda não
+                      está associado a nenhuma holding específica.
+                    </p>
+                    <div className="mt-4 rounded-md bg-background/50 p-4 border border-border">
+                      <p className="text-sm font-medium text-foreground mb-2">Para resolver este problema:</p>
+                      <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                        <li>Entre em contato com o administrador principal</li>
+                        <li>Solicite que ele associe seu usuário a uma holding</li>
+                        <li>O administrador pode fazer isso na página de gerenciamento de acesso do usuário</li>
+                      </ol>
+                    </div>
+                    <div className="mt-6 flex gap-3">
+                      <Link href="/dashboard">
+                        <Button variant="outline">Voltar ao Dashboard</Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      userHoldingIds = memberships.map((m) => m.organization_id)
+      console.log("[v0] Cadernos Gestao - User holding IDs from organization_members:", userHoldingIds)
+
+      for (const holdingId of userHoldingIds) {
+        try {
+          const { data: holdingOrgs } = await adminClient
+            .from("organizations")
+            .select("id")
+            .or(`id.eq.${holdingId},holding_id.eq.${holdingId}`)
+
+          if (holdingOrgs && holdingOrgs.length > 0) {
+            allowedOrgIds.push(...holdingOrgs.map((org) => org.id))
+          }
+        } catch (error: any) {
+          if (error?.name === "AbortError") {
+            console.log("[v0] Organizations fetch aborted (navigation cancelled)")
+            return null
+          }
+          console.error("[v0] Error fetching organizations:", error)
+        }
+      }
+
+      console.log("[v0] Cadernos Gestao - Allowed org IDs (holdings + companies):", allowedOrgIds)
+    } else {
+      // User or Revisor role
+      allowedOrgIds.push(profile.organization_id)
+    }
+  }
+
+  const templatesQuery = adminClient.from("book_templates").select("*").order("created_at", { ascending: false })
+
+  let templates
+  try {
+    const { data, error: templatesError } = await templatesQuery
+    if (templatesError) {
+      console.error("[v0] Error fetching templates:", templatesError)
+    }
+    templates = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      console.log("[v0] Templates fetch aborted (navigation cancelled)")
+      return null
+    }
+    console.error("[v0] Error fetching templates:", error)
+  }
+
+  console.log("[v0] Cadernos Gestao - Templates count:", templates?.length || 0)
+
+  let usersQuery = adminClient
+    .from("profiles")
+    .select("id, email, full_name, role, organization_id")
+    .in("role", ["user", "revisor", "holding_admin"])
+    .eq("is_active", true)
+    .order("full_name", { ascending: true })
+
+  if (allowedOrgIds.length > 0) {
+    try {
+      const { data: userMemberships } = await adminClient
+        .from("organization_members")
+        .select("user_id")
+        .in("organization_id", allowedOrgIds)
+
+      if (userMemberships && userMemberships.length > 0) {
+        const userIds = [...new Set(userMemberships.map((m) => m.user_id))]
+        usersQuery = usersQuery.in("id", userIds)
+        console.log("[v0] Cadernos Gestao - Filtering users by IDs from organization_members:", userIds.length)
+      }
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        console.log("[v0] User memberships fetch aborted (navigation cancelled)")
+        return null
+      }
+      console.error("[v0] Error fetching user memberships:", error)
+    }
+  }
+
+  let users
+  try {
+    const { data, error: usersError } = await usersQuery
+    if (usersError) {
+      console.error("[v0] Error fetching users:", usersError)
+    }
+    users = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      console.log("[v0] Users fetch aborted (navigation cancelled)")
+      return null
+    }
+    console.error("[v0] Error fetching users:", error)
+  }
+
+  console.log("[v0] Cadernos Gestao - Users count:", users?.length || 0)
+
+  let assignmentsQuery = adminClient.from("book_assignments").select(`
+      id,
+      caderno_id,
+      user_id,
+      role,
+      organization_id,
+      company_id,
+      created_at,
+      profiles:user_id (
+        id,
+        email,
+        full_name,
+        role
+      )
+    `)
+
+  if (allowedOrgIds.length > 0) {
+    assignmentsQuery = assignmentsQuery.in("organization_id", allowedOrgIds)
+  }
+
+  let assignments
+  try {
+    const { data, error: assignmentsError } = await assignmentsQuery
+    if (assignmentsError) {
+      console.error("[v0] Error fetching assignments:", assignmentsError)
+    }
+    assignments = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      console.log("[v0] Assignments fetch aborted (navigation cancelled)")
+      return null
+    }
+    console.error("[v0] Error fetching assignments:", error)
+  }
+
+  console.log("[v0] Cadernos Gestao - Assignments count:", assignments?.length || 0)
+
+  // Fetch organizations (holdings) and companies
+  let organizations
+  try {
+    const { data } = await adminClient
+      .from("organizations")
+      .select("*")
+      .in("id", allowedOrgIds)
+      .order("name")
+    organizations = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      return null
+    }
+    console.error("[v0] Error fetching organizations:", error)
+  }
+
+  let companies
+  try {
+    const { data } = await adminClient
+      .from("companies")
+      .select("*")
+      .in("holding_id", userHoldingIds)
+      .order("name")
+    companies = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      return null
+    }
+    console.error("[v0] Error fetching companies:", error)
+  }
+
+  // Fetch company_templates to know which templates are assigned to which companies
+  let companyTemplates
+  try {
+    const { data } = await adminClient
+      .from("company_templates")
+      .select("*")
+      .eq("active", true)
+    companyTemplates = data
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      return null
+    }
+    console.error("[v0] Error fetching company_templates:", error)
+  }
+
+  console.log("[v0] Cadernos Gestao - Organizations count:", organizations?.length || 0)
+  console.log("[v0] Cadernos Gestao - Companies count:", companies?.length || 0)
+  console.log("[v0] Cadernos Gestao - Company templates count:", companyTemplates?.length || 0)
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <CadernosGestaoClient
+          templates={templates || []}
+          users={users || []}
+          assignments={assignments || []}
+          currentUserId={user.id}
+          holdingId={userHoldingIds[0] || null}
+          organizations={organizations || []}
+          companies={companies || []}
+          companyTemplates={companyTemplates || []}
+        />
+      </div>
+    </div>
+  )
+}

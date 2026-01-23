@@ -11,41 +11,28 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 export default async function GestorQuestionsPage() {
+  const supabase = await createClient()
+  const adminClient = createAdminClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("role, email, id")
+    .eq("email", user.email)
+    .maybeSingle()
+
+  if (!profile) {
+    redirect("/dashboard")
+  }
+
   try {
-    const supabase = await createClient()
-    const adminClient = createAdminClient()
-
-    let user
-    try {
-      const result = await supabase.auth.getUser()
-      user = result.data.user
-    } catch (authError) {
-      console.error("[v0] Auth error:", authError)
-      redirect("/auth/login")
-    }
-
-    if (!user) {
-      redirect("/auth/login")
-    }
-
-    let profile
-    try {
-      const { data, error } = await adminClient
-        .from("profiles")
-        .select("role, email, id")
-        .eq("email", user.email)
-        .maybeSingle()
-
-      if (error) throw error
-      profile = data
-    } catch (profileError) {
-      console.error("[v0] Profile error:", profileError)
-      redirect("/dashboard")
-    }
-
-    if (!profile) {
-      redirect("/dashboard")
-    }
 
     const { data: orgMemberships, error: orgError } = await adminClient
       .from("organization_members")

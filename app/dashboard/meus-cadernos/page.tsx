@@ -178,11 +178,19 @@ export default async function MeusCadernosPage() {
   for (const [uniqueKey, caderno] of cadernosMap) {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
-    // Filter answers for this specific template AND company (organization)
-    const answeredForCaderno = answers.filter((a) =>
-      a.template_id === caderno.id &&
-      a.company_id === caderno.organization_id
-    )
+    // Filter answers for this specific template AND company
+    // Need to match by company_id (not organization_id which is the holding)
+    const answeredForCaderno = answers.filter((a) => {
+      if (a.template_id !== caderno.id) return false
+      
+      // If caderno has company_id, match by company_id
+      if (caderno.company_id) {
+        return a.company_id === caderno.company_id
+      }
+      
+      // If no company_id (direct to holding), match by organization_id
+      return a.company_id === caderno.organization_id || (!a.company_id && !caderno.company_id)
+    })
 
     const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a) => a.question_id))
 

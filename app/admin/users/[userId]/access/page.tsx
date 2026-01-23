@@ -18,7 +18,11 @@ export default async function ManageUserAccessPage({ params }: { params: { userI
     notFound()
   }
 
-  const { data: holdings } = await adminClient.from("organizations").select("*").order("name")
+  const { data: holdings } = await adminClient
+    .from("organizations")
+    .select("*")
+    .eq("type", "holding")
+    .order("name")
 
   const { data: companies } = await adminClient.from("companies").select("*").order("name")
 
@@ -26,7 +30,15 @@ export default async function ManageUserAccessPage({ params }: { params: { userI
 
   const { data: templates } = await adminClient.from("book_templates").select("*").order("name")
 
-  const { data: assignments } = await adminClient.from("book_assignments").select("*").eq("user_id", params.userId)
+  const { data: assignments } = await adminClient
+    .from("book_assignments")
+    .select("caderno_id, organization_id, company_id, role")
+    .eq("user_id", params.userId)
+
+  const { data: companyTemplates } = await adminClient
+    .from("company_templates")
+    .select("*")
+    .eq("active", true)
 
   const enrichedCompanies =
     companies?.map((company) => ({
@@ -68,6 +80,9 @@ export default async function ManageUserAccessPage({ params }: { params: { userI
           holdings={holdings || []}
           companies={enrichedCompanies}
           currentMemberships={memberships || []}
+          templates={templates || []}
+          currentAssignments={assignments || []}
+          companyTemplates={companyTemplates || []}
         />
       </div>
     </div>

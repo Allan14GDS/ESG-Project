@@ -17,9 +17,10 @@ interface Props {
   currentMemberships: any[]
   templates: any[]
   currentAssignments: any[]
+  companyTemplates: any[]
 }
 
-export function ManageUserAccessForm({ userId, userRole, holdings, companies, currentMemberships, templates, currentAssignments }: Props) {
+export function ManageUserAccessForm({ userId, userRole, holdings, companies, currentMemberships, templates, currentAssignments, companyTemplates: allCompanyTemplates }: Props) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
@@ -32,15 +33,20 @@ export function ManageUserAccessForm({ userId, userRole, holdings, companies, cu
   // Map of company_id -> template_ids[]
   const [companyTemplates, setCompanyTemplates] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {}
-    currentAssignments.forEach((assignment: any) => {
-      const companyId = assignment.organization_id
-      if (!initial[companyId]) {
-        initial[companyId] = []
-      }
-      if (assignment.caderno_id && !initial[companyId].includes(assignment.caderno_id)) {
-        initial[companyId].push(assignment.caderno_id)
-      }
-    })
+    if (currentAssignments && Array.isArray(currentAssignments)) {
+      currentAssignments.forEach((assignment: any) => {
+        // Use company_id (not organization_id which is the holding_id)
+        const companyId = assignment.company_id || assignment.organization_id
+        if (companyId) {
+          if (!initial[companyId]) {
+            initial[companyId] = []
+          }
+          if (assignment.caderno_id && !initial[companyId].includes(assignment.caderno_id)) {
+            initial[companyId].push(assignment.caderno_id)
+          }
+        }
+      })
+    }
     return initial
   })
 
@@ -230,10 +236,23 @@ export function ManageUserAccessForm({ userId, userRole, holdings, companies, cu
                               </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-2">
-                              {templates.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">Nenhum template disponível</p>
-                              ) : (
-                                templates.map((template) => (
+                              {(() => {
+                                // Filter templates that are assigned to this specific company
+                                const availableTemplateIds = allCompanyTemplates
+                                  .filter((ct) => ct.company_id === company.id)
+                                  .map((ct) => ct.template_id)
+                                
+                                const availableTemplates = templates.filter((t) => availableTemplateIds.includes(t.id))
+                                
+                                if (!templates || templates.length === 0) {
+                                  return <p className="text-sm text-muted-foreground">Nenhum template disponível</p>
+                                }
+                                
+                                if (availableTemplates.length === 0) {
+                                  return <p className="text-sm text-muted-foreground">Nenhum caderno atribuído a esta empresa</p>
+                                }
+                                
+                                return availableTemplates.map((template) => (
                                   <div
                                     key={template.id}
                                     className="flex items-center space-x-3 rounded-lg border border-border/30 bg-background/50 p-3"
@@ -270,7 +289,7 @@ export function ManageUserAccessForm({ userId, userRole, holdings, companies, cu
                                     </label>
                                   </div>
                                 ))
-                              )}
+                    })()}
                             </CardContent>
                           </Card>
                         )

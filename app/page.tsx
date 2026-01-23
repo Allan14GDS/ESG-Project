@@ -1,26 +1,49 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+"use client"
 
-export default async function HomePage() {
-  const supabase = await createClient()
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+export default function HomePage() {
+  const router = useRouter()
 
-  if (session) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
 
-    const userRole = profile?.role
+        if (session) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single()
 
-    // Redirect admins to admin panel, regular users to dashboard
-    if (userRole === "admin_main" || userRole === "admin") {
-      redirect("/admin")
-    } else {
-      redirect("/dashboard/meus-cadernos")
+          const userRole = profile?.role
+
+          // Redirect admins to admin panel, regular users to dashboard
+          if (userRole === "admin_main" || userRole === "admin") {
+            router.push("/admin")
+          } else {
+            router.push("/dashboard/meus-cadernos")
+          }
+        } else {
+          // If not authenticated, redirect to login
+          router.push("/auth/login")
+        }
+      } catch (error) {
+        console.error("[v0] Root page auth check error:", error)
+        router.push("/auth/login")
+      }
     }
-  }
 
-  // If not authenticated, redirect to login
-  redirect("/auth/login")
+    checkAuthAndRedirect()
+  }, [router])
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-muted-foreground">Carregando...</div>
+    </div>
+  )
 }

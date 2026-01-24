@@ -224,8 +224,19 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       console.log("[v0] FILTRO: Usuário regular - filtrando por user_id e company_id IS NULL")
     }
   } else {
-    // GESTOR: SEM FILTROS - VER TODAS AS RESPOSTAS DO TEMPLATE
-    console.log("[v0] FILTRO: Gestor - SEM FILTROS, buscando TODAS as respostas do template")
+    // GESTOR: Filtrar por company_id se estiver visualizando uma empresa específica
+    if (companyIdForSave) {
+      // Gestor visualizando uma EMPRESA específica - filtrar por company_id OU respostas legadas sem company_id
+      answersQuery = answersQuery.or(`company_id.eq.${companyIdForSave},and(company_id.is.null,holding_id.eq.${holdingIdForSave})`)
+      console.log("[v0] FILTRO: Gestor - filtrando por company_id:", companyIdForSave, "OU (company_id IS NULL AND holding_id:", holdingIdForSave, ")")
+    } else if (holdingIdForSave) {
+      // Gestor visualizando apenas HOLDING (sem empresa) - filtrar por holding_id
+      answersQuery = answersQuery.eq("holding_id", holdingIdForSave).is("company_id", null)
+      console.log("[v0] FILTRO: Gestor - filtrando por holding_id:", holdingIdForSave, "e company_id IS NULL")
+    } else {
+      // Gestor sem contexto específico - buscar todas
+      console.log("[v0] FILTRO: Gestor - SEM FILTROS, buscando TODAS as respostas do template")
+    }
   }
 
   const { data: existingAnswers, error: answersError } = await answersQuery
@@ -317,7 +328,11 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   const endIndex = startIndex + ITEMS_PER_PAGE
   const questions = allQuestions.slice(startIndex, endIndex)
 
-  const answeredCount = Object.keys(responsesMap).length
+  // Count only answers that match questions in this template
+  const questionIdsInTemplate = new Set(allQuestions.map(q => q.id))
+  const answeredCount = Object.keys(responsesMap).filter(questionId => 
+    questionIdsInTemplate.has(questionId)
+  ).length
   const progress = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0
 
   return (

@@ -210,11 +210,13 @@ export async function saveQuestionnaireResponse({
       throw bookAnswerError
     }
 
-    console.log("[v0] Successfully saved answer:", data)
-
-    revalidatePath(`/dashboard/questionnaire/${templateId}`)
-
-    return { success: true, data }
+  console.log("[v0] Successfully saved answer:", data)
+  
+  // Revalidate both questionnaire and meus-cadernos pages to update counts
+  revalidatePath(`/dashboard/questionnaire/${templateId}`)
+  revalidatePath("/dashboard/meus-cadernos")
+  
+  return { success: true, data }
   } catch (error) {
     console.error("[v0] Unexpected error saving response:", error)
     return { success: false, error: "Erro ao salvar resposta. Tente novamente." }

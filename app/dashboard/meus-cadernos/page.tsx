@@ -37,15 +37,41 @@ export default async function MeusCadernosPage() {
       .then((res) => res.data || []),
     Promise.resolve([]), // Will be populated after we get assignments
     Promise.resolve([]), // Will be populated after we get assignments
-    adminClient
-      .from("book_answers")
-      .select("template_id, question_id, status, company_id")
-      .eq("user_id", profile.id)
-      .then((res) => res.data || []),
+    Promise.resolve([]), // Will be fetched after we know if user is gestor
   ])
 
   const assignments = assignmentsResult.status === "fulfilled" ? assignmentsResult.value : []
-  const answers = answersResult.status === "fulfilled" ? answersResult.value : []
+  
+  // Check if user is a gestor (has any role that includes 'gestor' or 'admin')
+  const isGestor = profile.role === "holding_admin" || 
+                   profile.role === "company_admin" || 
+                   profile.role === "admin_main" ||
+                   profile.role === "admin"
+  
+  // Fetch answers based on user type
+  let answers: any[] = []
+  if (isGestor) {
+    // Gestores see ALL answers for companies/holdings they manage
+    const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
+    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
+    
+    if (companyIds.length > 0 || orgIds.length > 0) {
+      const { data: allAnswers } = await adminClient
+        .from("book_answers")
+        .select("template_id, question_id, status, company_id, holding_id, user_id")
+        .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+      
+      answers = allAnswers || []
+    }
+  } else {
+    // Regular users only see their own answers
+    const { data: userAnswers } = await adminClient
+      .from("book_answers")
+      .select("template_id, question_id, status, company_id, holding_id")
+      .eq("user_id", profile.id)
+    
+    answers = userAnswers || []
+  }
 
   // Get unique caderno IDs
   const cadernoIds = [...new Set(assignments.map((a) => a.caderno_id))]
@@ -179,17 +205,23 @@ export default async function MeusCadernosPage() {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
     // Filter answers for this specific template AND company
-    // Need to match by company_id (not organization_id which is the holding)
-    const answeredForCaderno = answers.filter((a) => {
+    // For gestores: count unique questions answered regardless of user/company duplication
+    // For regular users: count only their answers for the specific company
+    const answeredForCaderno = answers.filter((a: any) => {
       if (a.template_id !== caderno.id) return false
       
-      // If caderno has company_id, match by company_id
+      // If caderno has company_id (assigned to specific company)
       if (caderno.company_id) {
-        return a.company_id === caderno.company_id
+        // For gestor viewing, accept answers with matching company_id OR null company_id with matching holding
+        // This handles cases where questions were answered before company_id was implemented
+        return a.company_id === caderno.company_id || 
+               (!a.company_id && a.holding_id === caderno.organization_id) ||
+               (!a.company_id && !a.holding_id && isGestor) // Legacy answers without IDs for gestores
       }
       
-      // If no company_id (direct to holding), match by organization_id
-      return a.company_id === caderno.organization_id || (!a.company_id && !caderno.company_id)
+      // If no company_id (direct to holding), match answers for that holding
+      return a.holding_id === caderno.organization_id || 
+             (!a.company_id && !a.holding_id)
     })
 
     const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a) => a.question_id))
@@ -213,16 +245,6 @@ export default async function MeusCadernosPage() {
   }
 
   const cadernos = Array.from(cadernosMap.values())
-
-  console.log("[v0] Total organizations:", organizations.length)
-  console.log("[v0] Organizations:", organizations.map(o => ({ id: o.id, name: o.name, type: o.type, holding_id: o.holding_id })))
-  console.log("[v0] Total cadernos:", cadernos.length)
-  console.log("[v0] Cadernos with company_id:", cadernos.filter(c => c.company_id).length)
-  console.log("[v0] Cadernos without company_id:", cadernos.filter(c => !c.company_id).length)
-  console.log("[v0] Sample caderno:", cadernos[0])
-  console.log("[v0] Holdings:", holdings.length)
-  console.log("[v0] Companies:", companies.length)
-  console.log("[v0] Standalone orgs:", orgsWithNullType.length)
 
   // Build hierarchy: holding -> companies/direct cadernos
   const holdingsWithCompanies = holdings.map((holding) => {

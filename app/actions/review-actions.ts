@@ -310,6 +310,80 @@ export async function submitCorrection({
   }
 }
 
+export async function clearRevision({ junctionId, questionId, templateId }: ApproveQuestionParams) {
+  try {
+    console.log("[v0] clearRevision chamada:", { junctionId, questionId, templateId })
+    
+    const profile = await getCurrentUserProfile()
+
+    if (!profile) {
+      console.log("[v0] clearRevision: Usuário não autenticado")
+      return { success: false, error: "Usuário não autenticado" }
+    }
+
+    console.log("[v0] clearRevision: Profile:", { id: profile.id, role: profile.role })
+
+    if (!["admin_main", "holding_admin", "revisor"].includes(profile.role || "")) {
+      console.log("[v0] clearRevision: Permissão negada para role:", profile.role)
+      return { success: false, error: "Apenas gestores podem limpar revisões" }
+    }
+
+    const adminClient = createAdminClient()
+
+    // Limpar comentário na junction
+    const { error: updateError } = await adminClient
+      .from("book_question_junction")
+      .update({ comment: null })
+      .eq("id", junctionId)
+
+    if (updateError) {
+      console.error("[v0] Error clearing junction comment:", updateError)
+      return { success: false, error: "Erro ao limpar comentário" }
+    }
+
+    console.log("[v0] clearRevision: Comentário limpo da junction")
+
+    // Criar registro no histórico
+    const { error: historyError } = await adminClient.from("comment_history").insert({
+      book_template_id: templateId,
+      question_template_id: questionId,
+      user_id: profile.id,
+      company_id: profile.organization_id,
+      comment: "[REVISÃO CANCELADA] Ajuste solicitado foi removido",
+      question_generated_at: new Date().toISOString(),
+    })
+
+    if (historyError) {
+      console.error("[v0] Error creating history:", historyError)
+      // Não falhar se o histórico não for criado
+    }
+
+    console.log("[v0] clearRevision: Histórico criado")
+
+    // Atualizar status de TODAS as respostas desta questão para "rascunho"
+    const { error: statusError, count } = await adminClient
+      .from("book_answers")
+      .update({ status: "rascunho" })
+      .eq("template_id", templateId)
+      .eq("question_id", questionId)
+
+    if (statusError) {
+      console.error("[v0] Error updating answer status:", statusError)
+      return { success: false, error: "Erro ao atualizar status da resposta" }
+    }
+
+    console.log("[v0] clearRevision: Status atualizado para rascunho. Respostas afetadas:", count)
+
+    revalidatePath(`/dashboard/questionnaire/${templateId}`)
+    revalidatePath(`/admin/templates/${templateId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Error in clearRevision:", error)
+    return { success: false, error: "Erro inesperado ao limpar revisão" }
+  }
+}
+
 export async function getCommentHistory(templateId: string, questionId?: string) {
   try {
     const profile = await getCurrentUserProfile()

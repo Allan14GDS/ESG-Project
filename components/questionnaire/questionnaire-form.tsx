@@ -24,8 +24,10 @@ import {
   Send,
   MessageSquare,
   User,
+  X,
 } from "lucide-react"
 import { saveQuestionnaireResponse } from "@/app/actions/questionnaire-actions"
+import { clearRevision } from "@/app/actions/review-actions"
 import { ReviewPanel } from "@/components/questionnaire/review-panel"
 import { toast } from "sonner"
 
@@ -98,6 +100,7 @@ export function QuestionnaireForm({
   const [notApplicable, setNotApplicable] = useState<Record<string, boolean>>({})
   const [corrections, setCorrections] = useState<Record<string, string>>({})
   const [submittingCorrection, setSubmittingCorrection] = useState<string | null>(null)
+  const [clearingRevision, setClearingRevision] = useState<string | null>(null)
 
   const handleResponseChange = (questionId: string, value: string) => {
     setResponses((prev) => ({ ...prev, [questionId]: value }))
@@ -176,6 +179,28 @@ export function QuestionnaireForm({
     } else {
       setResponses((prev) => ({ ...prev, [questionId]: "" }))
     }
+  }
+
+  const handleClearRevision = async (question: Question) => {
+    if (!question.junction_id) return
+
+    setClearingRevision(question.id)
+
+    startTransition(async () => {
+      const result = await clearRevision({
+        junctionId: question.junction_id!,
+        questionId: question.id,
+        templateId,
+      })
+
+      if (result.success) {
+        toast.success("Ajuste solicitado foi removido com sucesso!")
+        router.refresh()
+      } else {
+        toast.error(result.error || "Erro ao remover ajuste solicitado")
+      }
+      setClearingRevision(null)
+    })
   }
 
   const formatCurrency = (value: string) => {
@@ -510,7 +535,13 @@ export function QuestionnaireForm({
   console.log("[v0] QuestionnaireForm recebeu:", {
     existingAnswersKeys: Object.keys(existingAnswers),
     answersByQuestionKeys: Object.keys(answersByQuestion),
-    isGestor
+    isGestor,
+    questionsWithComments: questions.filter(q => q.comment).map(q => ({
+      id: q.id,
+      label: q.label,
+      comment: q.comment,
+      junction_id: q.junction_id
+    }))
   })
 
   return (
@@ -588,13 +619,33 @@ export function QuestionnaireForm({
               {hasPendingRevision && !isLocked && answerStatus !== "corrigido" && (
                 <Alert className="mt-4 bg-amber-50 border-amber-200">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <AlertTitle className="text-amber-800 flex items-center gap-2">
-                    Ajuste Solicitado pelo Gestor
-                    {question.comment_author_name && (
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        <User className="h-3 w-3 mr-1" />
-                        {question.comment_author_name}
-                      </Badge>
+                  <AlertTitle className="text-amber-800 flex items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2">
+                      Ajuste Solicitado pelo Gestor
+                      {question.comment_author_name && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          <User className="h-3 w-3 mr-1" />
+                          {question.comment_author_name}
+                        </Badge>
+                      )}
+                    </div>
+                    {isGestor && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleClearRevision(question)}
+                        disabled={clearingRevision === question.id}
+                        className="h-7 text-xs hover:bg-amber-100 hover:text-amber-900"
+                      >
+                        {clearingRevision === question.id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Excluindo...
+                          </>
+                        ) : (
+                          "Excluir Ajuste"
+                        )}
+                      </Button>
                     )}
                   </AlertTitle>
                   <AlertDescription className="text-amber-700 mt-2">{question.comment}</AlertDescription>

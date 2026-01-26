@@ -180,14 +180,19 @@ export default async function MeusCadernosPage() {
   // Get unique template IDs for question count queries
   const uniqueTemplateIds = [...new Set(Array.from(cadernosMap.values()).map(c => c.id))]
 
-  const questionCountPromises = uniqueTemplateIds.map((templateId) =>
-    adminClient
-      .from("book_question_junction")
-      .select("*", { count: "exact", head: true })
-      .eq("book_template_id", templateId)
-      .then((res) => ({ templateId, count: res.count || 0 }))
-      .catch(() => ({ templateId, count: 0 })),
-  )
+  const questionCountPromises = uniqueTemplateIds.map(async (templateId) => {
+    try {
+      const junctionResult = await adminClient
+        .from("book_question_junction")
+        .select("*", { count: "exact", head: true })
+        .eq("book_template_id", templateId)
+      
+      return { templateId, count: junctionResult.count || 0 }
+    } catch (error) {
+      console.error(`[v0] Error counting questions for template ${templateId}:`, error)
+      return { templateId, count: 0 }
+    }
+  })
 
   const questionCounts = await Promise.allSettled(questionCountPromises)
 

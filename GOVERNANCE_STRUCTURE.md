@@ -5,24 +5,24 @@
 **NÃO existe tabela `holdings` no Supabase!**
 
 A estrutura real é:
-```
+\`\`\`
 organizations (empresas/organizações)
     ↓ (tem campo holding_id como UUID de referência)
     ↓
 book_templates via company_templates (cadernos atribuídos)
     ↓
 book_questions via book_question_junction (questões)
-```
+\`\`\`
 
 ## 📊 Hierarquia de Dados Real
 
-```
+\`\`\`
 organizations (empresas com holding_id)
     ↓
 Templates/Cadernos (book_templates)
     ↓
 Questions (book_questions)
-```
+\`\`\`
 
 ## 🗂️ Tabelas Principais de Governança
 
@@ -39,13 +39,13 @@ Armazena as organizações do sistema (ex: ESPM, teste123)
 - `size` (text) - Tamanho
 
 **Exemplo:**
-```sql
+\`\`\`sql
 -- Buscar todas as organizações
 SELECT * FROM organizations ORDER BY name;
 
 -- Buscar organizações de uma holding específica
 SELECT * FROM organizations WHERE holding_id = 'uuid-da-holding';
-```
+\`\`\`
 
 ---
 
@@ -61,12 +61,12 @@ Armazena os perfis dos usuários
 - `is_active` (boolean) - Se o usuário está ativo
 
 **Exemplo:**
-```sql
+\`\`\`sql
 SELECT p.*, o.name as organization_name
 FROM profiles p
 LEFT JOIN organizations o ON o.id = p.organization_id
 WHERE p.email = 'usuario@exemplo.com';
-```
+\`\`\`
 
 ---
 
@@ -82,14 +82,14 @@ Tabela de junção que permite que um usuário tenha acesso a múltiplas organiz
 - `created_at` (timestamp) - Data de criação
 
 **Exemplo:**
-```sql
+\`\`\`sql
 -- Ver todas as organizações que um usuário tem acesso
 SELECT om.*, o.name as organization_name, p.email
 FROM organization_members om
 LEFT JOIN organizations o ON o.id = om.organization_id
 LEFT JOIN profiles p ON p.id = om.user_id
 WHERE p.email = 'gestor@exemplo.com';
-```
+\`\`\`
 
 ---
 
@@ -115,9 +115,9 @@ Armazena os templates de cadernos (ex: GRI 2-1, GRI 2-2)
 - `created_by` (uuid) - Quem criou
 
 **Exemplo:**
-```sql
+\`\`\`sql
 SELECT * FROM book_templates ORDER BY name;
-```
+\`\`\`
 
 ---
 
@@ -132,13 +132,13 @@ Tabela de junção que vincula cadernos às organizações
 - `assigned_by` (uuid) - Quem atribuiu
 
 **Exemplo:**
-```sql
+\`\`\`sql
 SELECT ct.*, o.name as company_name, bt.name as template_name
 FROM company_templates ct
 LEFT JOIN organizations o ON o.id = ct.company_id
 LEFT JOIN book_templates bt ON bt.id = ct.template_id
 WHERE o.name = 'teste123' AND ct.active = true;
-```
+\`\`\`
 
 ---
 
@@ -164,14 +164,14 @@ Tabela de junção que vincula questões aos cadernos
 - `sort_order` (integer) - Ordem de exibição
 
 **Exemplo:**
-```sql
+\`\`\`sql
 SELECT bqj.*, bt.name as template_name, bq.label as question_label
 FROM book_question_junction bqj
 LEFT JOIN book_templates bt ON bt.id = bqj.book_template_id
 LEFT JOIN book_questions bq ON bq.id = bqj.question_template_id
 WHERE bt.name = 'GRI 2-1'
 ORDER BY bqj.sort_order;
-```
+\`\`\`
 
 ---
 
@@ -180,7 +180,7 @@ ORDER BY bqj.sort_order;
 ### Para Gestores (holding_admin):
 
 1. **Acesso a Questões:**
-   ```sql
+   \`\`\`sql
    -- Busca todas as questões dos cadernos atribuídos às empresas do gestor
    SELECT DISTINCT bq.*
    FROM profiles p
@@ -190,10 +190,10 @@ ORDER BY bqj.sort_order;
    INNER JOIN book_questions bq ON bq.id = bqj.question_template_id
    WHERE p.email = 'gestor@exemplo.com'
      AND ct.active = true;
-   ```
+   \`\`\`
 
 2. **Acesso a Cadernos:**
-   ```sql
+   \`\`\`sql
    -- Busca todos os cadernos atribuídos às empresas do gestor
    SELECT DISTINCT bt.*
    FROM profiles p
@@ -202,10 +202,10 @@ ORDER BY bqj.sort_order;
    INNER JOIN book_templates bt ON bt.id = ct.template_id
    WHERE p.email = 'gestor@exemplo.com'
      AND ct.active = true;
-   ```
+   \`\`\`
 
 3. **Acesso a Usuários:**
-   ```sql
+   \`\`\`sql
    -- Busca todos os usuários das mesmas organizações do gestor
    SELECT DISTINCT p2.*
    FROM profiles p
@@ -214,7 +214,7 @@ ORDER BY bqj.sort_order;
    INNER JOIN profiles p2 ON p2.id = om2.user_id
    WHERE p.email = 'gestor@exemplo.com'
      AND p2.role IN ('user', 'revisor', 'responder');
-   ```
+   \`\`\`
 
 ---
 
@@ -223,7 +223,7 @@ ORDER BY bqj.sort_order;
 ### Exemplo: Atribuir holding ESPM → empresa teste123 a um gestor
 
 ### Passo 1: Verificar se a organização existe
-```sql
+\`\`\`sql
 -- Verificar se existe a organização
 SELECT * FROM organizations WHERE name = 'teste123';
 
@@ -236,10 +236,10 @@ VALUES (
   'company',
   '12.345.678/0001-90'
 );
-```
+\`\`\`
 
 ### Passo 2: Criar o perfil do gestor
-```sql
+\`\`\`sql
 INSERT INTO profiles (id, email, full_name, role, organization_id, is_active)
 VALUES (
   'uuid-do-usuario-auth',
@@ -249,10 +249,10 @@ VALUES (
   (SELECT id FROM organizations WHERE name = 'teste123'),
   true
 );
-```
+\`\`\`
 
 ### Passo 3: Adicionar o gestor à organização (TABELA CHAVE!)
-```sql
+\`\`\`sql
 -- Adiciona o gestor à organização teste123
 INSERT INTO organization_members (user_id, organization_id, role_in_org)
 VALUES (
@@ -260,10 +260,10 @@ VALUES (
   (SELECT id FROM organizations WHERE name = 'teste123'),
   'holding_admin'
 );
-```
+\`\`\`
 
 ### Passo 4: Atribuir cadernos à empresa
-```sql
+\`\`\`sql
 -- Atribui o caderno "GRI 2-1" à empresa teste123
 INSERT INTO company_templates (company_id, template_id, active, assigned_by)
 VALUES (
@@ -272,10 +272,10 @@ VALUES (
   true,
   'uuid-do-admin-que-atribuiu'
 );
-```
+\`\`\`
 
 ### Passo 5: Verificar o acesso
-```sql
+\`\`\`sql
 -- Verifica quais cadernos o gestor tem acesso
 SELECT DISTINCT 
   bt.name as caderno, 
@@ -288,7 +288,7 @@ INNER JOIN company_templates ct ON ct.company_id = o.id
 INNER JOIN book_templates bt ON bt.id = ct.template_id
 WHERE p.email = 'gestor@exemplo.com'
   AND ct.active = true;
-```
+\`\`\`
 
 ---
 
@@ -308,7 +308,7 @@ WHERE p.email = 'gestor@exemplo.com'
 ## 🔍 Queries Úteis para Debug
 
 ### Ver toda a estrutura de organizações
-```sql
+\`\`\`sql
 SELECT 
   o.name as organizacao,
   o.holding_id,
@@ -321,10 +321,10 @@ LEFT JOIN book_question_junction bqj ON bqj.book_template_id = bt.id
 LEFT JOIN book_questions bq ON bq.id = bqj.question_template_id
 GROUP BY o.name, o.holding_id, bt.name
 ORDER BY o.name, bt.name;
-```
+\`\`\`
 
 ### Ver todos os acessos de um usuário
-```sql
+\`\`\`sql
 SELECT 
   p.email,
   p.role,
@@ -334,10 +334,10 @@ FROM profiles p
 LEFT JOIN organization_members om ON om.user_id = p.id
 LEFT JOIN organizations o ON o.id = om.organization_id
 WHERE p.email = 'usuario@exemplo.com';
-```
+\`\`\`
 
 ### Ver quantos cadernos cada empresa tem
-```sql
+\`\`\`sql
 SELECT 
   o.name as empresa,
   COUNT(DISTINCT ct.template_id) as total_cadernos
@@ -345,10 +345,10 @@ FROM organizations o
 LEFT JOIN company_templates ct ON ct.company_id = o.id AND ct.active = true
 GROUP BY o.name
 ORDER BY total_cadernos DESC;
-```
+\`\`\`
 
 ### Verificar se um usuário tem acesso a uma organização
-```sql
+\`\`\`sql
 SELECT 
   p.email,
   o.name as organizacao,

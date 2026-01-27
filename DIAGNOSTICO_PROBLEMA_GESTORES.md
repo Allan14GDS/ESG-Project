@@ -13,7 +13,7 @@ O gestor logado como `holding_admin` não está conseguindo buscar NENHUMA respo
 ### Arquivo: `app/dashboard/questionnaire/[templateId]/page.tsx`
 
 **Linha 193-206: Query de respostas**
-```typescript
+\`\`\`typescript
 let answersQuery = adminClient
     .from("book_answers")
     .select("question_id, value, value_jsonb, evidence_url, status, user_id, profiles:user_id(id, full_name, email)")
@@ -33,7 +33,7 @@ console.log("[v0] Fetching answers - isGestor:", isGestor, "holdingId:", holding
 const { data: existingAnswers, error: answersError } = await answersQuery
 
 console.log("[v0] Existing answers count:", existingAnswers?.length || 0)
-```
+\`\`\`
 
 **Valores do log:**
 - `isGestor: true` ✅
@@ -49,9 +49,9 @@ console.log("[v0] Existing answers count:", existingAnswers?.length || 0)
 1. **O gestor é `holding_admin`** mas `holdingIdForSave = null`
 2. **O código entra no `else if (holdingIdForSave)`** que é falso
 3. **Depois entra no `else if (companyIdForSave)`** que aplica o filtro:
-   ```sql
+   \`\`\`sql
    WHERE company_id = 'd03a766c-6d48-465e-9e5c-da2ccca39537' OR company_id IS NULL
-   ```
+   \`\`\`
 
 ### Por que retorna 0 respostas:
 
@@ -72,7 +72,7 @@ console.log("[v0] Existing answers count:", existingAnswers?.length || 0)
 ## 🔧 ONDE BUSCAR `holdingIdForSave`
 
 **Linha 152-176 da página:**
-```typescript
+\`\`\`typescript
 const { data: profile, error: profileError } = await adminClient
   .from("profiles")
   .select(
@@ -105,7 +105,7 @@ console.log("[v0] Questionnaire IDs:", {
   holdingIdForSave,
   userId: user.id,
 })
-```
+\`\`\`
 
 **O log mostra:** `holdingIdForSave: null`
 
@@ -120,7 +120,7 @@ Isso significa que:
 
 ### 1. Verificar estrutura do perfil do gestor
 
-```sql
+\`\`\`sql
 SELECT 
   id,
   email,
@@ -129,13 +129,13 @@ SELECT
   holding_id
 FROM profiles
 WHERE email = 'caio.moreno@grupocopa.com';
-```
+\`\`\`
 
 **Esperado:** Ver se `holding_id` está preenchido
 
 ### 2. Verificar respostas existentes
 
-```sql
+\`\`\`sql
 SELECT 
   id,
   question_id,
@@ -146,13 +146,13 @@ SELECT
   status
 FROM book_answers
 WHERE template_id = '{templateId}';
-```
+\`\`\`
 
 **Esperado:** Ver quais `company_id` e `holding_id` as respostas têm
 
 ### 3. Verificar join com companies
 
-```sql
+\`\`\`sql
 SELECT 
   p.id,
   p.email,
@@ -165,7 +165,7 @@ SELECT
 FROM profiles p
 LEFT JOIN companies c ON c.id = p.company_id
 WHERE p.email = 'caio.moreno@grupocopa.com';
-```
+\`\`\`
 
 **Esperado:** Ver se o join está funcionando
 
@@ -175,12 +175,12 @@ WHERE p.email = 'caio.moreno@grupocopa.com';
 
 ### Solução 1: Remover filtro de holding/company para gestores (TEMPORÁRIA)
 
-```typescript
+\`\`\`typescript
 if (!isGestor) {
     answersQuery = answersQuery.eq("user_id", user.id)
 }
 // Se for gestor, busca TODAS as respostas do template (sem filtro)
-```
+\`\`\`
 
 **Prós:** Gestor vê todas as respostas
 **Contras:** Pode ver respostas de outras holdings (problema de segurança)
@@ -188,19 +188,19 @@ if (!isGestor) {
 ### Solução 2: Consertar o `holdingIdForSave`
 
 Adicionar mais logs para debugar:
-```typescript
+\`\`\`typescript
 console.log("[v0] Profile data:", {
   companies: profile?.companies,
   holdings: profile?.holdings,
   company_id: profile?.company_id,
   holding_id: profile?.holding_id,
 })
-```
+\`\`\`
 
 ### Solução 3: Usar `holding_id` da tabela `companies`
 
 Se o perfil tem `company_id`, buscar o `holding_id` dessa company:
-```typescript
+\`\`\`typescript
 let finalHoldingId = holdingIdForSave
 
 if (!finalHoldingId && companyId) {
@@ -218,7 +218,7 @@ console.log("[v0] Final holding ID:", finalHoldingId)
 if (isGestor && finalHoldingId) {
   answersQuery = answersQuery.eq("holding_id", finalHoldingId)
 }
-```
+\`\`\`
 
 ---
 
@@ -226,7 +226,7 @@ if (isGestor && finalHoldingId) {
 
 **Execute esta query no Supabase SQL Editor para confirmar:**
 
-```sql
+\`\`\`sql
 -- 1. Dados do perfil
 SELECT 'PROFILE DATA' as tipo, * FROM profiles WHERE email = 'caio.moreno@grupocopa.com';
 
@@ -245,7 +245,7 @@ FROM book_answers ba
 JOIN profiles p ON p.id = ba.user_id
 WHERE ba.template_id = 'SEU_TEMPLATE_ID_AQUI'
 LIMIT 10;
-```
+\`\`\`
 
 Isso vai mostrar **EXATAMENTE** onde estão os dados e qual filtro usar.
 
@@ -255,10 +255,10 @@ Isso vai mostrar **EXATAMENTE** onde estão os dados e qual filtro usar.
 
 **Localização:** `components/questionnaire/questionnaire-form.tsx` linha 722
 
-```typescript
+\`\`\`typescript
 <Label className="text-sm font-medium">Resposta do Usuário:</Label>
 {renderQuestionInputWithValue(question, answerValue)}
-```
+\`\`\`
 
 **O que acontece:**
 1. Loop em `userAnswers.map()` (linha 650)

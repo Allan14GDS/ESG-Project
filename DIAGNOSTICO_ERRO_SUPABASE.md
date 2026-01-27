@@ -2,9 +2,9 @@
 
 ## ❌ ERRO IDENTIFICADO NOS LOGS
 
-```
+\`\`\`
 [v0] Query error: Could not embed because more than one relationship was found for 'book_answers' and 'user_id'
-```
+\`\`\`
 
 **Tradução:** O Supabase não conseguiu executar a query porque há AMBIGUIDADE na relação entre as tabelas `book_answers` e `profiles`.
 
@@ -14,14 +14,14 @@
 
 ### **1. Query Problemática (linha 195 do page.tsx)**
 
-```typescript
+\`\`\`typescript
 const { data: existingAnswers, error: answersError } = await adminClient
   .from("book_answers")
   .select("question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id, profiles:user_id(id, full_name, email)")
   //                                                                                               ^^^^^^^^^^^^^^
   //                                                                                        ESTE É O PROBLEMA
   .eq("template_id", templateId)
-```
+\`\`\`
 
 ### **2. Por que o erro acontece?**
 
@@ -35,18 +35,18 @@ Quando há múltiplas FKs para a mesma tabela, o Supabase **não sabe qual usar*
 
 ### **3. Prova do problema**
 
-```
+\`\`\`
 [v0] Answers count: 0  ← Query retornou ZERO resultados devido ao erro
 [v0] Query error: Could not embed because more than one relationship was found...
-```
+\`\`\`
 
 Mas quando buscamos sem o JOIN:
 
-```
+\`\`\`
 [v0] Amostra de respostas no banco (qualquer template): [
   {"template_id":"4442ce21-715d-4891-b6bc-27aec281be16","user_id":"a2a38405-..."}
 ]
-```
+\`\`\`
 
 As respostas **EXISTEM** no banco! O problema é a query JOIN.
 
@@ -58,17 +58,17 @@ As respostas **EXISTEM** no banco! O problema é a query JOIN.
 
 Buscar as respostas **SEM** os dados do perfil, e depois buscar perfis separadamente se necessário.
 
-```typescript
+\`\`\`typescript
 // REMOVER ISTO:
 .select("question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id, profiles:user_id(id, full_name, email)")
 
 // USAR ISTO:
 .select("question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id")
-```
+\`\`\`
 
 **Depois**, buscar perfis em query separada:
 
-```typescript
+\`\`\`typescript
 const uniqueUserIds = [...new Set(existingAnswers.map(a => a.user_id))]
 const { data: profiles } = await adminClient
   .from("profiles")
@@ -85,23 +85,23 @@ for (const profile of profiles) {
 for (const answer of existingAnswers) {
   answer.profiles = profilesMap[answer.user_id]
 }
-```
+\`\`\`
 
 ### **Opção 2: Especificar a FK correta (Solução Ideal)**
 
 Se soubermos o nome exato da FK, podemos especificá-la:
 
-```typescript
+\`\`\`typescript
 .select("question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id, profiles!book_answers_user_id_fkey(id, full_name, email)")
 //                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //                                                                                        Nome exato da constraint FK
-```
+\`\`\`
 
 **Como descobrir o nome da FK?**
 
 Execute no Supabase SQL Editor:
 
-```sql
+\`\`\`sql
 SELECT 
   conname AS constraint_name,
   conrelid::regclass AS table_name,
@@ -114,21 +114,21 @@ JOIN pg_attribute af ON af.attnum = ANY(c.confkey) AND af.attrelid = c.confrelid
 WHERE c.contype = 'f'
   AND conrelid = 'book_answers'::regclass
   AND confrelid = 'profiles'::regclass;
-```
+\`\`\`
 
 Resultado esperado:
-```
+\`\`\`
 constraint_name              | table_name    | column_name | referenced_table | referenced_column
 ----------------------------+---------------+-------------+------------------+------------------
 book_answers_user_id_fkey   | book_answers  | user_id     | profiles         | id
 book_answers_created_by_fkey| book_answers  | created_by  | profiles         | id
-```
+\`\`\`
 
 ---
 
 ## 🔄 FLUXO ATUAL (QUEBRADO)
 
-```
+\`\`\`
 1. SERVIDOR (page.tsx linha 195)
    ↓
    Query: SELECT ... profiles:user_id(...) FROM book_answers
@@ -159,13 +159,13 @@ book_answers_created_by_fkey| book_answers  | created_by  | profiles         | i
 7. RESULTADO FINAL
    ↓
    NADA APARECE para gestores
-```
+\`\`\`
 
 ---
 
 ## 📊 DADOS DO LOG QUE CONFIRMAM
 
-```javascript
+\`\`\`javascript
 // SERVIDOR
 [v0] User Role: holding_admin
 [v0] Is Gestor: true  ✅
@@ -180,7 +180,7 @@ book_answers_created_by_fkey| book_answers  | created_by  | profiles         | i
 [v0] existingAnswersKeys: []  ❌ (Recebeu objeto vazio)
 [v0] answersByQuestionKeys: []  ❌ (Recebeu objeto vazio)
 [v0] Estado inicial de responses: {}  ❌ (Não há dados para inicializar)
-```
+\`\`\`
 
 ---
 
@@ -188,7 +188,7 @@ book_answers_created_by_fkey| book_answers  | created_by  | profiles         | i
 
 ### **Mudança no código (page.tsx)**
 
-```typescript
+\`\`\`typescript
 // ANTES (QUEBRADO)
 let answersQuery = adminClient
   .from("book_answers")
@@ -225,13 +225,13 @@ if (existingAnswers && existingAnswers.length > 0) {
     answer.profiles = profilesMap[answer.user_id] || null
   }
 }
-```
+\`\`\`
 
 ---
 
 ## 📈 FLUXO APÓS CORREÇÃO
 
-```
+\`\`\`
 1. SERVIDOR
    ↓
    Query: SELECT * FROM book_answers (SEM JOIN)
@@ -273,7 +273,7 @@ if (existingAnswers && existingAnswers.length > 0) {
        {renderQuestionInputWithValue(question, "Sim")}
      </div>
    )}
-```
+\`\`\`
 
 ---
 

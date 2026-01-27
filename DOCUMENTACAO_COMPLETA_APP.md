@@ -36,15 +36,15 @@ O **b.kick Platform** (GRI 2 ESG App) é uma plataforma de gestão ESG (Environm
 ### 2.1 Estrutura de Rotas
 
 #### Rotas Públicas (Autenticação)
-```
+\`\`\`
 /auth/login          → Login page
 /auth/signup         → Signup page (criar conta)
 /auth/logout         → Logout handler
 /auth/forgot-password → Reset de senha (se implementado)
-```
+\`\`\`
 
 #### Rotas do Dashboard (Usuários Autenticados)
-```
+\`\`\`
 /dashboard                           → Dashboard principal com KPIs
 /dashboard/meus-cadernos            → Lista de cadernos atribuídos ao usuário
 /dashboard/cadernos-gestao          → Gestão de cadernos (gestor+)
@@ -61,10 +61,10 @@ O **b.kick Platform** (GRI 2 ESG App) é uma plataforma de gestão ESG (Environm
 /dashboard/governance               → Seção de governança
 /dashboard/disclosures/[id]         → Disclosure específico
 /dashboard/organization             → Configurar organização
-```
+\`\`\`
 
 #### Rotas Administrativas (Admin Main + Holding Admin)
-```
+\`\`\`
 /admin                                    → Central de comando admin
 /admin/holdings                           → Gerenciar holdings
 /admin/holdings/[holdingId]              → Detalhes de uma holding
@@ -79,7 +79,7 @@ O **b.kick Platform** (GRI 2 ESG App) é uma plataforma de gestão ESG (Environm
 /admin/users                             → Gerenciar todos os usuários
 /admin/users/[userId]/access            → Gerenciar acessos do usuário
 /admin/users/invite                     → Convidar novos usuários
-```
+\`\`\`
 
 ### 2.2 Navegação por Perfil de Usuário
 
@@ -135,11 +135,11 @@ O **b.kick Platform** (GRI 2 ESG App) é uma plataforma de gestão ESG (Environm
   - Usa `getAdminClient()` para bypass RLS policies
 
 #### Funções de Proteção (`lib/auth-utils.ts`)
-```typescript
+\`\`\`typescript
 requireAdmin()      // Admin_main apenas
 requireGestor()     // Admin_main ou holding_admin
 requireAuth()       // Qualquer usuário autenticado
-```
+\`\`\`
 
 ---
 
@@ -149,7 +149,7 @@ requireAuth()       // Qualquer usuário autenticado
 
 O sistema define 6 tipos de usuários:
 
-```typescript
+\`\`\`typescript
 type UserRole = 
   | "admin_main"      // Administrador principal (super-admin)
   | "holding_admin"   // Gestor de holding/corporate
@@ -157,7 +157,7 @@ type UserRole =
   | "revisor"         // Revisor/auditor de respostas
   | "user"            // Usuário padrão/respondente
   | "responder"       // Respondente de dados
-```
+\`\`\`
 
 ### 3.2 Hierarquia e Permissões
 
@@ -230,14 +230,14 @@ type UserRole =
 #### Sistema de Status de Respostas
 Cada resposta (`book_answers`) pode ter um dos seguintes status:
 
-```typescript
+\`\`\`typescript
 type AnswerStatus = 
   | "rascunho"        // Draft - em preenchimento
   | "aguardando_revisao"  // Enviado para revisão
   | "revisao"         // Gestor solicitou ajustes
   | "aprovado"        // Gestor aprovou
   | "rejeitado"       // Gestor rejeitou (deprecated)
-```
+\`\`\`
 
 #### Fluxo de Aprovação
 
@@ -280,17 +280,17 @@ type AnswerStatus =
 
 Essa tabela vincula usuários a múltiplas organizations:
 
-```sql
+\`\`\`sql
 organization_members (
   user_id         uuid,  -- FK profiles
   organization_id uuid,  -- FK organizations
   role_in_org     text   -- Role específica nesta org
 )
-```
+\`\`\`
 
 **Exemplo de Verificação de Acesso**:
 
-```typescript
+\`\`\`typescript
 // lib/auth-utils.ts
 async function getUserOrganizationIds(userId: string): Promise<string[]> {
   const { data } = await adminClient
@@ -300,7 +300,7 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
   
   return data?.map(m => m.organization_id) || []
 }
-```
+\`\`\`
 
 ---
 
@@ -407,14 +407,14 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 1. Gestor/admin seleciona company
 2. Escolhe template da lista disponível
 3. Sistema cria vínculo em `company_templates`:
-   ```sql
+   \`\`\`sql
    INSERT INTO company_templates (
      company_id,
      template_id,
      active,
      assigned_by
    ) VALUES (...)
-   ```
+   \`\`\`
 
 **Peculiaridades**:
 - Um template pode ser atribuído a múltiplas companies
@@ -431,14 +431,14 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 1. Gestor seleciona usuário
 2. Atribui cadernos específicos ao usuário
 3. Sistema cria vínculo em `user_book_assignments`:
-   ```sql
+   \`\`\`sql
    INSERT INTO user_book_assignments (
      user_id,
      template_id,
      company_id,
      assigned_by
    ) VALUES (...)
-   ```
+   \`\`\`
 
 **Peculiaridades**:
 - Usuário vê apenas cadernos atribuídos a ele
@@ -451,7 +451,7 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 
 ### 5.1 Fluxo de Onboarding de Empresa
 
-```
+\`\`\`
 1. Admin_main cria Holding
    ↓
 2. Admin_main cria Company vinculada à Holding
@@ -465,11 +465,11 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 6. Holding_admin convida usuários respondentes
    ↓
 7. Holding_admin atribui cadernos aos usuários
-```
+\`\`\`
 
 ### 5.2 Fluxo de Preenchimento de Caderno
 
-```
+\`\`\`
 1. Usuário acessa /dashboard/meus-cadernos
    ↓
 2. Vê lista de cadernos atribuídos a ele
@@ -483,11 +483,11 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 6. Usuário clica "Enviar para Revisão"
    ↓
 7. Status muda para "aguardando_revisao"
-```
+\`\`\`
 
 ### 5.3 Fluxo de Revisão de Respostas
 
-```
+\`\`\`
 1. Gestor acessa /dashboard/cadernos-gestao
    ↓
 2. Vê lista de cadernos com respostas pendentes
@@ -505,11 +505,11 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 7. Usuário recebe alerta de correção pendente
    ↓
 8. Usuário corrige e reenvia (status → aguardando_revisao)
-```
+\`\`\`
 
 ### 5.4 Fluxo de Criação de Template
 
-```
+\`\`\`
 1. Admin_main acessa /admin/templates
    ↓
 2. Clica "Criar Template"
@@ -525,7 +525,7 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 7. Define ordem de exibição (sort_order)
    ↓
 8. Template pronto para ser atribuído
-```
+\`\`\`
 
 ---
 
@@ -534,7 +534,7 @@ async function getUserOrganizationIds(userId: string): Promise<string[]> {
 ### 6.1 Tabelas Principais
 
 #### profiles (Usuários)
-```sql
+\`\`\`sql
 profiles (
   id              uuid PRIMARY KEY,
   email           text UNIQUE NOT NULL,
@@ -544,7 +544,7 @@ profiles (
   organization_id uuid REFERENCES organizations(id),
   created_at      timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - `id` é o mesmo ID do Supabase Auth
@@ -552,7 +552,7 @@ profiles (
 - Role define permissões globais
 
 #### organizations (Holdings + Companies)
-```sql
+\`\`\`sql
 organizations (
   id          uuid PRIMARY KEY,
   name        text NOT NULL,
@@ -563,7 +563,7 @@ organizations (
   size        text,
   created_at  timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - **NÃO existe tabela holdings separada**
@@ -572,7 +572,7 @@ organizations (
 - `holding_id` é apenas referência UUID, não FK
 
 #### organization_members (Vínculo Usuário ↔ Organização)
-```sql
+\`\`\`sql
 organization_members (
   user_id         uuid REFERENCES profiles(id),
   organization_id uuid REFERENCES organizations(id),
@@ -580,7 +580,7 @@ organization_members (
   created_at      timestamp DEFAULT now(),
   PRIMARY KEY (user_id, organization_id)
 )
-```
+\`\`\`
 
 **Observações**:
 - **TABELA CHAVE** para governança
@@ -588,7 +588,7 @@ organization_members (
 - Gestor deve estar em `organization_members` para ver dados
 
 #### book_templates (Templates de Cadernos)
-```sql
+\`\`\`sql
 book_templates (
   id          uuid PRIMARY KEY,
   name        text NOT NULL,
@@ -597,14 +597,14 @@ book_templates (
   created_by  uuid REFERENCES profiles(id),
   created_at  timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Template global, reutilizável
 - Exemplos: "GRI 2-1", "GRI 2-2", etc.
 
 #### book_questions (Banco de Questões)
-```sql
+\`\`\`sql
 book_questions (
   id                uuid PRIMARY KEY,
   label             text NOT NULL,
@@ -613,7 +613,7 @@ book_questions (
   metadata          jsonb,
   created_at        timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Questão global, reutilizável
@@ -621,7 +621,7 @@ book_questions (
 - `metadata` armazena configurações específicas do tipo
 
 #### book_question_junction (Questões ↔ Templates)
-```sql
+\`\`\`sql
 book_question_junction (
   id                   uuid PRIMARY KEY,
   book_template_id     uuid REFERENCES book_templates(id),
@@ -630,7 +630,7 @@ book_question_junction (
   comment              text,
   created_at           timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Vincula questões a templates
@@ -638,7 +638,7 @@ book_question_junction (
 - `comment` pode ter observações do gestor
 
 #### company_templates (Templates ↔ Companies)
-```sql
+\`\`\`sql
 company_templates (
   id          uuid PRIMARY KEY,
   company_id  uuid REFERENCES organizations(id),
@@ -647,14 +647,14 @@ company_templates (
   assigned_by uuid REFERENCES profiles(id),
   created_at  timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Atribui template a uma company
 - `active = false` desativa sem deletar
 
 #### book_answers (Respostas dos Usuários)
-```sql
+\`\`\`sql
 book_answers (
   id           uuid PRIMARY KEY,
   template_id  uuid REFERENCES book_templates(id),
@@ -669,7 +669,7 @@ book_answers (
   updated_at   timestamp DEFAULT now(),
   created_at   timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Armazena respostas dos usuários
@@ -679,7 +679,7 @@ book_answers (
 - `company_id` e `holding_id` podem ser NULL
 
 #### comment_history (Histórico de Revisões)
-```sql
+\`\`\`sql
 comment_history (
   id                      uuid PRIMARY KEY,
   book_template_id        uuid REFERENCES book_templates(id),
@@ -690,7 +690,7 @@ comment_history (
   question_generated_at   timestamp DEFAULT now(),
   created_at              timestamp DEFAULT now()
 )
-```
+\`\`\`
 
 **Observações**:
 - Registra todas as ações de revisão
@@ -699,7 +699,7 @@ comment_history (
 
 ### 6.2 Relacionamentos Importantes
 
-```
+\`\`\`
 profiles
   ↓ (1:N via organization_members)
 organizations
@@ -709,22 +709,22 @@ book_templates
 book_questions
   ↓ (1:N via book_answers)
 book_answers (respostas dos usuários)
-```
+\`\`\`
 
 ### 6.3 Queries Críticas para Gestores
 
 #### Buscar todas as companies de um gestor
-```sql
+\`\`\`sql
 SELECT DISTINCT o.*
 FROM profiles p
 INNER JOIN organization_members om ON om.user_id = p.id
 INNER JOIN organizations o ON o.id = om.organization_id
 WHERE p.email = 'gestor@exemplo.com'
   AND o.type = 'company';
-```
+\`\`\`
 
 #### Buscar cadernos atribuídos às companies do gestor
-```sql
+\`\`\`sql
 SELECT DISTINCT bt.*
 FROM profiles p
 INNER JOIN organization_members om ON om.user_id = p.id
@@ -732,10 +732,10 @@ INNER JOIN company_templates ct ON ct.company_id = om.organization_id
 INNER JOIN book_templates bt ON bt.id = ct.template_id
 WHERE p.email = 'gestor@exemplo.com'
   AND ct.active = true;
-```
+\`\`\`
 
 #### Buscar respostas dos usuários nas companies do gestor
-```sql
+\`\`\`sql
 SELECT ba.*, bq.label, p.full_name
 FROM profiles p_gestor
 INNER JOIN organization_members om ON om.user_id = p_gestor.id
@@ -743,7 +743,7 @@ INNER JOIN book_answers ba ON ba.company_id = om.organization_id
 INNER JOIN book_questions bq ON bq.id = ba.question_id
 INNER JOIN profiles p ON p.id = ba.user_id
 WHERE p_gestor.email = 'gestor@exemplo.com';
-```
+\`\`\`
 
 ---
 
@@ -765,7 +765,7 @@ WHERE p_gestor.email = 'gestor@exemplo.com';
 5. Gestor aprova ou solicita ajustes
 
 ### Hierarquia de Permissões:
-```
+\`\`\`
 admin_main (super-admin)
   ↓
 holding_admin (gestor de holding)
@@ -775,4 +775,4 @@ company_admin (gestor de empresa)
 revisor (revisor/auditor)
   ↓
 user/responder (respondentes)
-```
+\`\`\`

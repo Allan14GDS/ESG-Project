@@ -222,3 +222,157 @@ export async function saveQuestionnaireResponse({
     return { success: false, error: "Erro ao salvar resposta. Tente novamente." }
   }
 }
+
+interface DeleteAnswerParams {
+  answerId: string
+  templateId: string
+  questionId: string
+  deletedByUserId: string
+  reason?: string
+}
+
+export async function deleteUserAnswer({
+  answerId,
+  templateId,
+  questionId,
+  deletedByUserId,
+  reason,
+}: DeleteAnswerParams) {
+  try {
+    const profile = await getCurrentUserProfile()
+
+    if (!profile) {
+      return {
+        success: false,
+        error: "Usuário não autenticado",
+      }
+    }
+
+    // Verificar se o usuário é gestor
+    if (profile.role !== "gestor") {
+      return {
+        success: false,
+        error: "Apenas gestores podem deletar respostas",
+      }
+    }
+
+    const adminClient = createAdminClient()
+
+    // Buscar a resposta antes de deletar para salvar no histórico
+    const { data: answerData, error: fetchError } = await adminClient
+      .from("book_answers")
+      .select("*, profiles!inner(full_name, email)")
+      .eq("id", answerId)
+      .single()
+
+    if (fetchError || !answerData) {
+      return {
+        success: false,
+        error: "Resposta não encontrada",
+      }
+    }
+
+    // Salvar no histórico de deletados
+    const { error: historyError } = await adminClient.from("deleted_answers_history").insert({
+      answer_id: answerId,
+      template_id: templateId,
+      question_id: questionId,
+      user_id: answerData.user_id,
+      company_id: answerData.company_id,
+      holding_id: answerData.holding_id,
+      value: answerData.value,
+      value_jsonb: answerData.value_jsonb,
+      evidence_url: answerData.evidence_url,
+      status: answerData.status,
+      deleted_by: deletedByUserId,
+      deleted_at: new Date().toISOString(),
+      deletion_reason: reason || null,
+      original_created_at: answerData.created_at,
+      original_updated_at: answerData.updated_at,
+    })
+
+    if (historyError) {
+      console.error("[v0] Error saving to history:", historyError)
+      return {
+        success: false,
+        error: "Erro ao salvar no histórico de deletados",
+      }
+    }
+
+    // Deletar a resposta
+    const { error: deleteError } = await adminClient.from("book_answers").delete().eq("id", answerId)
+
+    if (deleteError) {
+      console.error("[v0] Error deleting answer:", deleteError)
+      return {
+        success: false,
+        error: "Erro ao deletar resposta",
+      }
+    }
+
+    // Revalidar páginas
+    revalidatePath(`/dashboard/questionnaire/${templateId}`)
+    revalidatePath("/dashboard/meus-cadernos")
+    revalidatePath("/dashboard/historico")
+
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Unexpected error deleting answer:", error)
+    return { success: false, error: "Erro ao deletar resposta. Tente novamente." }
+  }
+}
+
+export async function getDeletedAnswersHistory(templateId?: string) {
+  try {
+    const profile = await getCurrentUserProfile()
+
+    if (!profile) {
+      return {
+        success: false,
+        error: "Usuário não autenticado",
+      }
+    }
+
+    // Verificar se o usuário é gestor
+    if (profile.role !== "gestor") {
+      return {
+        success: false,
+        error: "Apenas gestores podem visualizar o histórico",
+      }
+    }
+
+    const adminClient = createAdminClient()
+
+    let query = adminClient
+      .from("deleted_answers_history")
+      .select(
+        `
+        *,
+        deleted_by_profile:profiles!deleted_answers_history_deleted_by_fkey(full_name, email),
+        user_profile:profiles!deleted_answers_history_user_id_fkey(full_name, email),
+        question:questions(label, unique_identifier),
+        template:book_templates(name)
+      `
+      )
+      .order("deleted_at", { ascending: false })
+
+    if (templateId) {
+      query = query.eq("template_id", templateId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error("[v0] Error fetching deleted history:", error)
+      return {
+        success: false,
+        error: "Erro ao buscar histórico",
+      }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error("[v0] Unexpected error fetching history:", error)
+    return { success: false, error: "Erro ao buscar histórico. Tente novamente." }
+  }
+}

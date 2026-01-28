@@ -222,3 +222,163 @@ export async function saveQuestionnaireResponse({
     return { success: false, error: "Erro ao salvar resposta. Tente novamente." }
   }
 }
+
+interface DeleteAnswerParams {
+  answerId: string
+  templateId: string
+  questionId: string
+  deletedByUserId: string
+  reason?: string
+}
+
+export async function deleteUserAnswer({
+  answerId,
+  templateId,
+  questionId,
+  deletedByUserId,
+  reason,
+}: DeleteAnswerParams) {
+  try {
+    const profile = await getCurrentUserProfile()
+
+    if (!profile) {
+      return {
+        success: false,
+        error: "Usuário não autenticado",
+      }
+    }
+
+    // Verificar se o usuário é gestor ou holding_admin
+    if (profile.role !== "gestor" && profile.role !== "holding_admin") {
+      return {
+        success: false,
+        error: "Apenas gestores podem deletar respostas",
+      }
+    }
+
+    const adminClient = createAdminClient()
+
+    // Buscar a resposta antes de deletar para salvar no histórico
+    const { data: answerData, error: fetchError } = await adminClient
+      .from("book_answers")
+      .select("*, profiles!book_answers_user_id_fkey(full_name, email)")
+      .eq("id", answerId)
+      .single()
+
+    if (fetchError || !answerData) {
+      console.error("[v0] Error fetching answer:", fetchError)
+      return {
+        success: false,
+        error: "Resposta não encontrada",
+      }
+    }
+
+    // Salvar no audit_logs
+    const { error: auditError } = await adminClient.from("audit_logs").insert({
+      user_id: deletedByUserId,
+      action: "delete_answer",
+      entity_type: "book_answer",
+      entity_id: answerId,
+      old_value: {
+        value: answerData.value,
+        value_jsonb: answerData.value_jsonb,
+        evidence_url: answerData.evidence_url,
+        status: answerData.status,
+        user_name: answerData.profiles?.full_name,
+        user_email: answerData.profiles?.email,
+      },
+      new_value: null,
+      holding_id: answerData.holding_id,
+      company_id: answerData.company_id,
+      book_template_id: templateId,
+      question_id: questionId,
+      answer_text: reason || "Resposta deletada pelo gestor",
+      occurred_at: new Date().toISOString(),
+    })
+
+    if (auditError) {
+      console.error("[v0] Error saving to audit_logs:", auditError)
+      return {
+        success: false,
+        error: "Erro ao salvar no histórico de auditoria",
+      }
+    }
+
+    // Deletar a resposta
+    const { error: deleteError } = await adminClient.from("book_answers").delete().eq("id", answerId)
+
+    if (deleteError) {
+      console.error("[v0] Error deleting answer:", deleteError)
+      return {
+        success: false,
+        error: "Erro ao deletar resposta",
+      }
+    }
+
+    // Revalidar páginas
+    revalidatePath(`/dashboard/questionnaire/${templateId}`)
+    revalidatePath("/dashboard/meus-cadernos")
+    revalidatePath("/dashboard/historico")
+
+    return { success: true }
+  } catch (error) {
+    console.error("[v0] Unexpected error deleting answer:", error)
+    return { success: false, error: "Erro ao deletar resposta. Tente novamente." }
+  }
+}
+
+export async function getDeletedAnswersHistory(templateId?: string) {
+  try {
+    const profile = await getCurrentUserProfile()
+
+    if (!profile) {
+      return {
+        success: false,
+        error: "Usuário não autenticado",
+      }
+    }
+
+    // Verificar se o usuário é gestor ou holding_admin
+    if (profile.role !== "gestor" && profile.role !== "holding_admin") {
+      return {
+        success: false,
+        error: "Apenas gestores podem visualizar o histórico",
+      }
+    }
+
+    const adminClient = createAdminClient()
+
+    let query = adminClient
+      .from("audit_logs")
+      .select(
+        `
+        *,
+        user:profiles!audit_logs_user_id_fkey(full_name, email),
+        question:questions(label, unique_identifier),
+        template:book_templates(name)
+      `
+      )
+      .eq("action", "delete_answer")
+      .eq("entity_type", "book_answer")
+      .order("occurred_at", { ascending: false })
+
+    if (templateId) {
+      query = query.eq("book_template_id", templateId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error("[v0] Error fetching deleted history:", error)
+      return {
+        success: false,
+        error: "Erro ao buscar histórico",
+      }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error("[v0] Unexpected error fetching history:", error)
+    return { success: false, error: "Erro ao buscar histórico. Tente novamente." }
+  }
+}

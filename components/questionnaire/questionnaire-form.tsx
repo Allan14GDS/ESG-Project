@@ -25,8 +25,9 @@ import {
   MessageSquare,
   User,
   X,
+  Trash2,
 } from "lucide-react"
-import { saveQuestionnaireResponse } from "@/app/actions/questionnaire-actions"
+import { saveQuestionnaireResponse, deleteUserAnswer } from "@/app/actions/questionnaire-actions"
 import { clearRevision } from "@/app/actions/review-actions"
 import { ReviewPanel } from "@/components/questionnaire/review-panel"
 import { toast } from "sonner"
@@ -101,6 +102,8 @@ export function QuestionnaireForm({
   const [corrections, setCorrections] = useState<Record<string, string>>({})
   const [submittingCorrection, setSubmittingCorrection] = useState<string | null>(null)
   const [clearingRevision, setClearingRevision] = useState<string | null>(null)
+  const [deletingAnswer, setDeletingAnswer] = useState<string | null>(null)
+  const [deletedAnswers, setDeletedAnswers] = useState<Set<string>>(new Set())
 
   const handleResponseChange = (questionId: string, value: string) => {
     setResponses((prev) => ({ ...prev, [questionId]: value }))
@@ -200,6 +203,51 @@ export function QuestionnaireForm({
         toast.error(result.error || "Erro ao remover ajuste solicitado")
       }
       setClearingRevision(null)
+    })
+  }
+
+  const handleDeleteAnswer = async (answerId: string, questionId: string) => {
+    if (!confirm("Tem certeza que deseja deletar esta resposta? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
+    setDeletingAnswer(answerId)
+
+    startTransition(async () => {
+      const result = await deleteUserAnswer({
+        answerId,
+        templateId,
+        questionId,
+        deletedByUserId: userId,
+        reason: "Deletado pelo gestor",
+      })
+
+      if (result.success) {
+        // Adicionar ao set de respostas deletadas para remover do UI imediatamente
+        setDeletedAnswers((prev) => new Set(prev).add(answerId))
+        
+        // Limpar os responses e outros estados relacionados à questão
+        setResponses((prev) => {
+          const newResponses = { ...prev }
+          delete newResponses[questionId]
+          return newResponses
+        })
+        
+        setSavedQuestions((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(questionId)
+          return newSet
+        })
+        
+        toast.success("Resposta deletada com sucesso!")
+        // Aguardar um pouco antes de atualizar para garantir que o estado foi atualizado
+        setTimeout(() => {
+          router.refresh()
+        }, 100)
+      } else {
+        toast.error(result.error || "Erro ao deletar resposta")
+      }
+      setDeletingAnswer(null)
     })
   }
 
@@ -708,43 +756,69 @@ export function QuestionnaireForm({
               {isGestor && userAnswers.length > 0 ? (
                 // Visão do Gestor - Mostrar respostas dos usuários (EXATAMENTE como aparecem para o usuário)
                 <div className="space-y-4">
-                  {userAnswers.map((answer, idx) => {
-                    const userName = answer.profiles?.full_name || answer.profiles?.email || "Usuário"
-                    const answerValue = answer.value || ""
-                    const answerValueJsonb = answer.value_jsonb || {}
-                    const isNA = answerValue === "N/A" || answerValue.includes("Não aplicável")
-                    const hasJustification = answerValueJsonb.justification
-                    
-                    return (
-                      <div key={idx} className="space-y-4 p-4 rounded-lg bg-amber-50/30 border border-amber-200">
-                        {/* Header com nome do usuário e status */}
+                  {userAnswers
+                    .filter((answer) => answer.id && !deletedAnswers.has(answer.id))
+                    .map((answer, idx) => {
+                      const userName = answer.profiles?.full_name || answer.profiles?.email || "Usuário"
+                      const answerValue = answer.value || ""
+                      const answerValueJsonb = answer.value_jsonb || {}
+                      const isNA = answerValue === "N/A" || answerValue.includes("Não aplicável")
+                      const hasJustification = answerValueJsonb.justification
+
+                      return (
+                        <div
+                          key={answer.id || idx}
+                          className="space-y-4 p-4 rounded-lg bg-amber-50/30 border border-amber-200"
+                        >
+                        {/* Header com nome do usuário, status e botão de deletar */}
                         <div className="flex items-center justify-between pb-3 border-b border-amber-200">
-                          <Badge variant="outline" className="text-xs">
-                            <User className="h-3 w-3 mr-1" />
-                            {userName}
-                          </Badge>
-                          <Badge
-                            variant={
-                              answer.status === "aprovado"
-                                ? "default"
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              <User className="h-3 w-3 mr-1" />
+                              {userName}
+                            </Badge>
+                            <Badge
+                              variant={
+                                answer.status === "aprovado"
+                                  ? "default"
+                                  : answer.status === "corrigido"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                              className={
+                                answer.status === "aprovado"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : answer.status === "corrigido"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : ""
+                              }
+                            >
+                              {answer.status === "aprovado"
+                                ? "Aprovado"
                                 : answer.status === "corrigido"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                            className={
-                              answer.status === "aprovado"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : answer.status === "corrigido"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : ""
-                            }
+                                  ? "Corrigido"
+                                  : answer.status || "Rascunho"}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAnswer(answer.id, question.id)}
+                            disabled={deletingAnswer === answer.id}
+                            className="h-7 text-xs hover:bg-red-100 hover:text-red-700 text-red-600"
                           >
-                            {answer.status === "aprovado"
-                              ? "Aprovado"
-                              : answer.status === "corrigido"
-                                ? "Corrigido"
-                                : answer.status || "Rascunho"}
-                          </Badge>
+                            {deletingAnswer === answer.id ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Deletando...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Deletar
+                              </>
+                            )}
+                          </Button>
                         </div>
 
                         {/* Não Aplicável - Se marcado */}

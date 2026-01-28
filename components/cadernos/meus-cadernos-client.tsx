@@ -4,8 +4,9 @@ import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Building2, FileText, ChevronRight, AlertTriangle, Search } from "lucide-react"
+import { Building2, FileText, ChevronRight, AlertTriangle, Search, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 interface MeusCadernosClientProps {
   allHoldingsAndOrgs: any[]
@@ -13,6 +14,26 @@ interface MeusCadernosClientProps {
 
 export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  console.log("[v0] MeusCadernosClient - allHoldingsAndOrgs:", allHoldingsAndOrgs)
+  console.log("[v0] Holdings count:", allHoldingsAndOrgs.length)
+  allHoldingsAndOrgs.forEach(holding => {
+    console.log(`[v0] Holding ${holding.name}:`, {
+      companies: holding.companies.length,
+      directCadernos: holding.directCadernos?.length || 0
+    })
+    holding.companies.forEach((company: any) => {
+      console.log(`[v0]   Company ${company.name}: ${company.cadernos?.length || 0} cadernos`)
+    })
+  })
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }))
+  }
 
   const filteredHoldings = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -23,11 +44,6 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
 
     return allHoldingsAndOrgs
       .map((holding) => {
-        // Filter direct cadernos
-        const filteredDirectCadernos = holding.directCadernos.filter((caderno: any) =>
-          caderno.name.toLowerCase().includes(query)
-        )
-
         // Filter companies and their cadernos
         const filteredCompanies = holding.companies
           .map((company: any) => {
@@ -45,13 +61,11 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
           })
           .filter(Boolean)
 
-        // Only include holding if it has matching direct cadernos or companies with matching cadernos
-        if (filteredDirectCadernos.length > 0 || filteredCompanies.length > 0) {
+        // Only include holding if it has companies with matching cadernos
+        if (filteredCompanies.length > 0) {
           return {
             ...holding,
-            directCadernos: filteredDirectCadernos,
             companies: filteredCompanies,
-            hasDirectCadernos: filteredDirectCadernos.length > 0,
           }
         }
 
@@ -107,7 +121,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
               {/* Holding Header */}
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border/50 px-8 py-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1">
                     <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/20 border-2 border-primary/30">
                       <Building2 className="h-7 w-7 text-primary" />
                     </div>
@@ -120,7 +134,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 items-center">
                     <div className="text-center px-4 py-2 rounded-lg bg-background/50">
                       <p className="text-2xl font-bold text-foreground">{holding.totalCadernos}</p>
                       <p className="text-xs text-muted-foreground">Cadernos</p>
@@ -139,105 +153,32 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                         <p className="text-xs text-muted-foreground">Correções</p>
                       </div>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleSection(`holding-${holding.id}`)}
+                      className="h-10 w-10 p-0"
+                    >
+                      {expandedSections[`holding-${holding.id}`] === false ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronUp className="h-5 w-5" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Companies within Holding or Direct Cadernos */}
-              <CardContent className="p-6 space-y-4">
-                {/* Show direct cadernos for holdings without companies or standalone orgs */}
-                {holding.hasDirectCadernos && (
-                  <Card className="border-border/50 bg-muted/30">
-                    <div className="border-b border-border/50 px-6 py-4 bg-muted/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 group-hover:bg-primary/20 transition-colors">
-                            <FileText className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-foreground">Cadernos Diretos</h3>
-                            <p className="text-xs text-muted-foreground">Atribuídos diretamente à organização</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="font-medium">
-                          {holding.directCadernos.length} {holding.directCadernos.length === 1 ? "caderno" : "cadernos"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardContent className="p-0">
-                      <div className="divide-y divide-border/50">
-                        {holding.directCadernos.map((caderno: any) => (
-                          <Link
-                            key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
-                            href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || caderno.organization_id}`}
-                            className="flex items-center justify-between p-4 hover:bg-background/50 transition-colors group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 group-hover:bg-primary/20 transition-colors">
-                                <FileText className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                                  {caderno.name}
-                                </h4>
-                                {caderno.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">{caderno.description}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  {caderno.needsCorrection > 0 && (
-                                    <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
-                                      <AlertTriangle className="h-3 w-3 mr-1" />
-                                      {caderno.needsCorrection} {caderno.needsCorrection === 1 ? "correção" : "correções"}
-                                    </Badge>
-                                  )}
-                                  <Badge
-                                    variant={
-                                      caderno.status === "completed"
-                                        ? "default"
-                                        : caderno.status === "in_progress"
-                                          ? "secondary"
-                                          : "outline"
-                                    }
-                                    className={
-                                      caderno.status === "completed"
-                                        ? "text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                        : caderno.status === "in_progress"
-                                          ? "text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                          : "text-xs"
-                                    }
-                                  >
-                                    {caderno.status === "completed"
-                                      ? "Concluído"
-                                      : caderno.status === "in_progress"
-                                        ? "Em Progresso"
-                                        : "Pendente"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <p className="text-sm font-semibold text-foreground">
-                                  {caderno.answeredCount}/{caderno.questionsCount}
-                                </p>
-                                <p className="text-xs text-muted-foreground">questões</p>
-                              </div>
-                              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Companies with their cadernos */}
+              {/* Companies within Holding */}
+              {expandedSections[`holding-${holding.id}`] !== false && (
+                <CardContent className="p-6 space-y-4">
+                  {/* Companies with their cadernos */}
                 {holding.companies.map((company: any) => (
                   <Card key={company.id} className="border-border/50 bg-muted/30">
                     {/* Company Header */}
                     <div className="border-b border-border/50 px-6 py-4 bg-muted/50">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background border border-border/50">
                             <Building2 className="h-5 w-5 text-muted-foreground" />
                           </div>
@@ -262,13 +203,26 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                               {company.needsCorrection}
                             </Badge>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleSection(`company-${company.id}`)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {expandedSections[`company-${company.id}`] === false ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     </div>
 
                     {/* Cadernos for this Company */}
-                    <CardContent className="p-0">
-                      {company.cadernos.length === 0 ? (
+                    {expandedSections[`company-${company.id}`] !== false && (
+                      <CardContent className="p-0">
+                      {!company.cadernos || company.cadernos.length === 0 ? (
                         <div className="py-8 text-center">
                           <p className="text-sm text-muted-foreground">Nenhum caderno atribuído</p>
                         </div>
@@ -338,9 +292,11 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                         </div>
                       )}
                     </CardContent>
+                    )}
                   </Card>
                 ))}
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           ))
         )}

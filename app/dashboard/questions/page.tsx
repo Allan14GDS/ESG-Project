@@ -22,11 +22,15 @@ export default async function GestorQuestionsPage() {
     redirect("/auth/login")
   }
 
-  const { data: profile } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("role, email, id")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .maybeSingle()
+
+  if (profileError) {
+    console.error("[v0] Error fetching profile:", profileError)
+  }
 
   if (!profile) {
     redirect("/dashboard")

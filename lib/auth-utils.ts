@@ -39,8 +39,12 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("*")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .maybeSingle()
+
+  if (profileError) {
+    console.error("[v0] Error fetching profile in auth-utils:", profileError)
+  }
 
   return profile
 }

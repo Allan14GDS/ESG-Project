@@ -18,11 +18,15 @@ export default async function GestorUsersPage() {
   }
 
   // Get user profile with role
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, email, full_name")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .maybeSingle()
+
+  if (profileError) {
+    console.error("[v0] Error fetching profile:", profileError)
+  }
 
   if (!profile || (profile.role !== "holding_admin" && profile.role !== "admin_main")) {
     redirect("/dashboard")

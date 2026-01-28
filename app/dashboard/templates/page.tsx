@@ -19,11 +19,15 @@ export default async function GestorTemplatesPage() {
   }
 
   // Get user profile with role
-  const { data: profile } = await adminClient
+  const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("role, email")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .maybeSingle()
+
+  if (profileError) {
+    console.error("[v0] Error fetching profile:", profileError)
+  }
 
   if (!profile || (profile.role !== "holding_admin" && profile.role !== "admin_main")) {
     redirect("/dashboard")

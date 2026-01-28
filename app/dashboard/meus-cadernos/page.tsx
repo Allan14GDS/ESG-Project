@@ -19,14 +19,15 @@ export default async function MeusCadernosPage() {
     redirect("/auth/login")
   }
 
-  // Fetch profile
+  // Fetch profile by user ID (not email)
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("*")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .single()
 
   if (profileError || !profile) {
+    console.error("[v0] Error fetching profile:", profileError)
     redirect("/auth/login")
   }
 

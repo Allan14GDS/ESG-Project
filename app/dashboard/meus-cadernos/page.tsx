@@ -211,25 +211,24 @@ export default async function MeusCadernosPage() {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
     // Filter answers for this specific template AND company
-    // For gestores: count unique questions answered regardless of user/company duplication
-    // For regular users: count only their answers for the specific company
+    // IMPORTANT: Each company has its own set of answers for the same template
+    // We must filter by company_id to count answers specific to this company
     const answeredForCaderno = answers.filter((a: any) => {
       if (a.template_id !== caderno.id) return false
       
       // If caderno has company_id (assigned to specific company)
       if (caderno.company_id) {
-        // For gestor viewing, accept answers with matching company_id OR null company_id with matching holding
-        // This handles cases where questions were answered before company_id was implemented
-        return a.company_id === caderno.company_id || 
-               (!a.company_id && a.holding_id === caderno.organization_id) ||
-               (!a.company_id && !a.holding_id && isGestor) // Legacy answers without IDs for gestores
+        // STRICT MATCH: Only count answers that have the exact same company_id
+        // This ensures we don't mix answers from different companies
+        return a.company_id === caderno.company_id
       }
       
       // If no company_id (direct to holding), match answers for that holding
-      return a.holding_id === caderno.organization_id || 
-             (!a.company_id && !a.holding_id)
+      // Only accept answers with matching holding_id AND no company_id
+      return a.holding_id === caderno.organization_id && !a.company_id
     })
 
+    // Count unique questions answered for this specific company
     const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a) => a.question_id))
 
     // Count questions that need correction (rejected or pending revision)
@@ -241,13 +240,22 @@ export default async function MeusCadernosPage() {
     caderno.answeredCount = uniqueAnsweredQuestions.size
     caderno.needsCorrection = needsCorrectionCount
 
+    // Status based on answered count vs total questions
     if (caderno.answeredCount === 0) {
       caderno.status = "pending"
-    } else if (caderno.answeredCount >= caderno.questionsCount) {
+    } else if (caderno.answeredCount >= caderno.questionsCount && caderno.questionsCount > 0) {
       caderno.status = "completed"
     } else {
       caderno.status = "in_progress"
     }
+    
+    console.log(`[v0] Caderno ${caderno.name} (${uniqueKey}):`, {
+      company_id: caderno.company_id,
+      questionsCount: caderno.questionsCount,
+      answeredCount: caderno.answeredCount,
+      status: caderno.status,
+      answersFound: answeredForCaderno.length
+    })
   }
 
   const cadernos = Array.from(cadernosMap.values())
@@ -263,10 +271,11 @@ export default async function MeusCadernosPage() {
     )
 
     const companiesWithCadernos = companiesInHolding.map((company) => {
-      // Filter cadernos that are assigned ONLY to this specific company
-      // DO NOT include direct holding cadernos here - they're counted separately
+      // Filter cadernos that are assigned to this specific company
+      // Also include directCadernos (holding-level) that should be visible to all companies
       const cadernosForCompany = cadernos.filter((caderno) => 
-        caderno.company_id === company.id
+        caderno.company_id === company.id ||
+        (caderno.organization_id === holding.id && !caderno.company_id)
       )
 
       return {

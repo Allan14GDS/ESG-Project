@@ -263,8 +263,8 @@ export default async function MeusCadernosPage() {
     )
 
     const companiesWithCadernos = companiesInHolding.map((company) => {
-      // Filter cadernos that are assigned to this specific company ONLY
-      // Do NOT include holding-level cadernos here as they have separate counts
+      // Filter cadernos that are assigned ONLY to this specific company
+      // DO NOT include direct holding cadernos here - they're counted separately
       const cadernosForCompany = cadernos.filter((caderno) => 
         caderno.company_id === company.id
       )

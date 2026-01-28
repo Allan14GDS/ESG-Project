@@ -4,9 +4,9 @@ import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Building2, FileText, ChevronRight, AlertTriangle, Search, ChevronDown } from "lucide-react"
+import { Building2, FileText, ChevronRight, AlertTriangle, Search, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 interface MeusCadernosClientProps {
   allHoldingsAndOrgs: any[]
@@ -170,25 +170,28 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="font-medium">
-                            {holding.directCadernos.length} {holding.directCadernos.length === 1 ? "caderno" : "cadernos"}
+                            {holding.directCadernos.length}{" "}
+                            {holding.directCadernos.length === 1 ? "caderno" : "cadernos"}
                           </Badge>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toggleSection(`direct_${holding.id}`)}
+                            onClick={() => toggleSection(`direct-${holding.id}`)}
                             className="h-8 w-8 p-0"
                           >
-                            <ChevronDown
-                              className={`h-5 w-5 transition-transform ${expandedSections[`direct_${holding.id}`] === false ? "-rotate-90" : ""}`}
-                            />
+                            {expandedSections[`direct-${holding.id}`] === false ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                     </div>
-                    {expandedSections[`direct_${holding.id}`] !== false && (
+                    {expandedSections[`direct-${holding.id}`] !== false && (
                       <CardContent className="p-0">
-                        <div className="divide-y divide-border/50">
-                          {holding.directCadernos.map((caderno: any) => (
+                      <div className="divide-y divide-border/50">
+                        {holding.directCadernos.map((caderno: any) => (
                           <Link
                             key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
                             href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || caderno.organization_id}`}
@@ -250,6 +253,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                         ))}
                       </div>
                     </CardContent>
+                    )}
                   </Card>
                 )}
 
@@ -259,7 +263,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                     {/* Company Header */}
                     <div className="border-b border-border/50 px-6 py-4 bg-muted/50">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background border border-border/50">
                             <Building2 className="h-5 w-5 text-muted-foreground" />
                           </div>
@@ -284,12 +288,25 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                               {company.needsCorrection}
                             </Badge>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleSection(`company-${company.id}`)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {expandedSections[`company-${company.id}`] === false ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     </div>
 
                     {/* Cadernos for this Company */}
-                    <CardContent className="p-0">
+                    {expandedSections[`company-${company.id}`] !== false && (
+                      <CardContent className="p-0">
                       {company.cadernos.length === 0 ? (
                         <div className="py-8 text-center">
                           <p className="text-sm text-muted-foreground">Nenhum caderno atribuído</p>
@@ -360,6 +377,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                         </div>
                       )}
                     </CardContent>
+                    )}
                   </Card>
                 ))}
               </CardContent>

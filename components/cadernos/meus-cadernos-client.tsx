@@ -4,7 +4,8 @@ import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Building2, FileText, ChevronRight, AlertTriangle, Search } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Building2, FileText, ChevronRight, AlertTriangle, Search, ChevronDown } from "lucide-react"
 import Link from "next/link"
 
 interface MeusCadernosClientProps {
@@ -13,6 +14,14 @@ interface MeusCadernosClientProps {
 
 export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }))
+  }
 
   const filteredHoldings = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -150,7 +159,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                   <Card className="border-border/50 bg-muted/30">
                     <div className="border-b border-border/50 px-6 py-4 bg-muted/50">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 group-hover:bg-primary/20 transition-colors">
                             <FileText className="h-5 w-5 text-primary" />
                           </div>
@@ -159,14 +168,27 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                             <p className="text-xs text-muted-foreground">Atribuídos diretamente à organização</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="font-medium">
-                          {holding.directCadernos.length} {holding.directCadernos.length === 1 ? "caderno" : "cadernos"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-medium">
+                            {holding.directCadernos.length} {holding.directCadernos.length === 1 ? "caderno" : "cadernos"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleSection(`direct_${holding.id}`)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronDown
+                              className={`h-5 w-5 transition-transform ${expandedSections[`direct_${holding.id}`] === false ? "-rotate-90" : ""}`}
+                            />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <CardContent className="p-0">
-                      <div className="divide-y divide-border/50">
-                        {holding.directCadernos.map((caderno: any) => (
+                    {expandedSections[`direct_${holding.id}`] !== false && (
+                      <CardContent className="p-0">
+                        <div className="divide-y divide-border/50">
+                          {holding.directCadernos.map((caderno: any) => (
                           <Link
                             key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
                             href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || caderno.organization_id}`}

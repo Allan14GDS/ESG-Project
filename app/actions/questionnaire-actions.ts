@@ -329,17 +329,22 @@ export async function deleteUserAnswer({
 
 export async function getDeletedAnswersHistory(templateId?: string) {
   try {
+    console.log("[v0] getDeletedAnswersHistory called with templateId:", templateId)
     const profile = await getCurrentUserProfile()
 
     if (!profile) {
+      console.log("[v0] No profile found")
       return {
         success: false,
         error: "Usuário não autenticado",
       }
     }
 
+    console.log("[v0] User profile:", profile.role)
+
     // Verificar se o usuário é gestor ou holding_admin
     if (profile.role !== "gestor" && profile.role !== "holding_admin") {
+      console.log("[v0] User is not authorized:", profile.role)
       return {
         success: false,
         error: "Apenas gestores podem visualizar o histórico",
@@ -348,6 +353,7 @@ export async function getDeletedAnswersHistory(templateId?: string) {
 
     const adminClient = createAdminClient()
 
+    console.log("[v0] Fetching audit_logs...")
     let query = adminClient
       .from("audit_logs")
       .select(
@@ -376,6 +382,7 @@ export async function getDeletedAnswersHistory(templateId?: string) {
       }
     }
 
+    console.log("[v0] Fetched history data:", data?.length, "records")
     return { success: true, data }
   } catch (error) {
     console.error("[v0] Unexpected error fetching history:", error)

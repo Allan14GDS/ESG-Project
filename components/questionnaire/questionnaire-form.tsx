@@ -225,6 +225,20 @@ export function QuestionnaireForm({
       if (result.success) {
         // Adicionar ao set de respostas deletadas para remover do UI imediatamente
         setDeletedAnswers((prev) => new Set(prev).add(answerId))
+        
+        // Limpar os responses e outros estados relacionados à questão
+        setResponses((prev) => {
+          const newResponses = { ...prev }
+          delete newResponses[questionId]
+          return newResponses
+        })
+        
+        setSavedQuestions((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(questionId)
+          return newSet
+        })
+        
         toast.success("Resposta deletada com sucesso!")
         // Aguardar um pouco antes de atualizar para garantir que o estado foi atualizado
         setTimeout(() => {

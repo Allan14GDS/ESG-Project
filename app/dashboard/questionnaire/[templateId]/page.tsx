@@ -199,7 +199,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   // CORREÇÃO: Remover JOIN problemático que causa erro "more than one relationship"
   let answersQuery = adminClient
     .from("book_answers")
-    .select("question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id")
+    .select("id, question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id")
     .eq("template_id", templateId)
 
   console.log("[v0] ===== DIAGNÓSTICO COMPLETO =====")

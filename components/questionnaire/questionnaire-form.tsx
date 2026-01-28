@@ -206,18 +206,13 @@ export function QuestionnaireForm({
   }
 
   const handleDeleteAnswer = async (answerId: string, questionId: string) => {
-    console.log("[v0] handleDeleteAnswer called with:", { answerId, questionId, templateId, userId })
-    
     if (!confirm("Tem certeza que deseja deletar esta resposta? Esta ação não pode ser desfeita.")) {
-      console.log("[v0] User cancelled delete")
       return
     }
 
-    console.log("[v0] User confirmed delete, setting deletingAnswer state")
     setDeletingAnswer(answerId)
 
     startTransition(async () => {
-      console.log("[v0] Calling deleteUserAnswer action")
       const result = await deleteUserAnswer({
         answerId,
         templateId,
@@ -226,14 +221,10 @@ export function QuestionnaireForm({
         reason: "Deletado pelo gestor",
       })
 
-      console.log("[v0] deleteUserAnswer result:", result)
-
       if (result.success) {
         toast.success("Resposta deletada com sucesso!")
-        console.log("[v0] Calling router.refresh()")
         router.refresh()
       } else {
-        console.log("[v0] Delete failed:", result.error)
         toast.error(result.error || "Erro ao deletar resposta")
       }
       setDeletingAnswer(null)

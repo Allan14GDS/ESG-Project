@@ -239,23 +239,17 @@ export async function deleteUserAnswer({
   reason,
 }: DeleteAnswerParams) {
   try {
-    console.log("[v0] deleteUserAnswer called with:", { answerId, templateId, questionId, deletedByUserId })
-    
     const profile = await getCurrentUserProfile()
 
     if (!profile) {
-      console.log("[v0] No profile found")
       return {
         success: false,
         error: "Usuário não autenticado",
       }
     }
 
-    console.log("[v0] User profile:", profile)
-
     // Verificar se o usuário é gestor ou holding_admin
     if (profile.role !== "gestor" && profile.role !== "holding_admin") {
-      console.log("[v0] User is not gestor or holding_admin:", profile.role)
       return {
         success: false,
         error: "Apenas gestores podem deletar respostas",
@@ -265,25 +259,21 @@ export async function deleteUserAnswer({
     const adminClient = createAdminClient()
 
     // Buscar a resposta antes de deletar para salvar no histórico
-    console.log("[v0] Fetching answer with id:", answerId)
     const { data: answerData, error: fetchError } = await adminClient
       .from("book_answers")
-      .select("*, profiles!inner(full_name, email)")
+      .select("*, profiles!book_answers_user_id_fkey(full_name, email)")
       .eq("id", answerId)
       .single()
 
     if (fetchError || !answerData) {
-      console.log("[v0] Error fetching answer:", fetchError)
+      console.error("[v0] Error fetching answer:", fetchError)
       return {
         success: false,
         error: "Resposta não encontrada",
       }
     }
 
-    console.log("[v0] Answer data found:", answerData)
-
     // Salvar no audit_logs
-    console.log("[v0] Inserting into audit_logs")
     const { error: auditError } = await adminClient.from("audit_logs").insert({
       user_id: deletedByUserId,
       action: "delete_answer",
@@ -314,10 +304,7 @@ export async function deleteUserAnswer({
       }
     }
 
-    console.log("[v0] Audit log saved successfully")
-
     // Deletar a resposta
-    console.log("[v0] Deleting answer from book_answers")
     const { error: deleteError } = await adminClient.from("book_answers").delete().eq("id", answerId)
 
     if (deleteError) {
@@ -328,14 +315,11 @@ export async function deleteUserAnswer({
       }
     }
 
-    console.log("[v0] Answer deleted successfully")
-
     // Revalidar páginas
     revalidatePath(`/dashboard/questionnaire/${templateId}`)
     revalidatePath("/dashboard/meus-cadernos")
     revalidatePath("/dashboard/historico")
 
-    console.log("[v0] Pages revalidated, returning success")
     return { success: true }
   } catch (error) {
     console.error("[v0] Unexpected error deleting answer:", error)

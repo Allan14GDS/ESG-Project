@@ -144,10 +144,8 @@ export default async function MeusCadernosPage() {
     holdings = organizations.filter((o) => o.type === "holding")
     orgsWithNullType = organizations.filter((o) => o.type === null || o.type === undefined)
 
-    const companiesFromTable = companiesResult.status === "fulfilled" ? companiesResult.value : []
-
     // Merge companies into organizations with type='company'
-    const companiesAsOrgs = companiesFromTable.map((company: any) => ({
+    const companiesAsOrgs = companies.map((company: any) => ({
       id: company.id,
       name: company.name,
       type: "company",
@@ -159,7 +157,7 @@ export default async function MeusCadernosPage() {
     organizations = [...organizations, ...companiesAsOrgs]
 
     console.log("[v0] Fetched organizations:", organizations.length)
-    console.log("[v0] Fetched companies from companies table:", companiesFromTable.length)
+    console.log("[v0] Fetched companies from companies table:", companies.length)
   }
 
   // Build cadernos list with progress

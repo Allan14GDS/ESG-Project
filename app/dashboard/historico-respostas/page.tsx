@@ -36,7 +36,7 @@ async function DeletedAnswersHistoryContent() {
     )
   }
 
-  // Buscar histórico diretamente
+  // Buscar histórico diretamente (sem join com questions pois não há FK)
   const adminClient = createAdminClient()
   const { data: history, error } = await adminClient
     .from("audit_logs")
@@ -44,7 +44,6 @@ async function DeletedAnswersHistoryContent() {
       `
       *,
       user:profiles!audit_logs_user_id_fkey(full_name, email),
-      question:questions(label, unique_identifier),
       template:book_templates(name)
     `
     )

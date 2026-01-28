@@ -16,6 +16,18 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
+  console.log("[v0] MeusCadernosClient - allHoldingsAndOrgs:", allHoldingsAndOrgs)
+  console.log("[v0] Holdings count:", allHoldingsAndOrgs.length)
+  allHoldingsAndOrgs.forEach(holding => {
+    console.log(`[v0] Holding ${holding.name}:`, {
+      companies: holding.companies.length,
+      directCadernos: holding.directCadernos?.length || 0
+    })
+    holding.companies.forEach((company: any) => {
+      console.log(`[v0]   Company ${company.name}: ${company.cadernos?.length || 0} cadernos`)
+    })
+  })
+
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -210,7 +222,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                     {/* Cadernos for this Company */}
                     {expandedSections[`company-${company.id}`] !== false && (
                       <CardContent className="p-0">
-                      {company.cadernos.length === 0 ? (
+                      {!company.cadernos || company.cadernos.length === 0 ? (
                         <div className="py-8 text-center">
                           <p className="text-sm text-muted-foreground">Nenhum caderno atribuído</p>
                         </div>

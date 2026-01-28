@@ -264,7 +264,11 @@ export default async function MeusCadernosPage() {
 
     const companiesWithCadernos = companiesInHolding.map((company) => {
       // Filter cadernos that are assigned to this specific company
-      const cadernosForCompany = cadernos.filter((caderno) => caderno.company_id === company.id)
+      // Also include directCadernos (holding-level) that should be visible to all companies
+      const cadernosForCompany = cadernos.filter((caderno) => 
+        caderno.company_id === company.id ||
+        (caderno.organization_id === holding.id && !caderno.company_id)
+      )
 
       return {
         ...company,

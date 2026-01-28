@@ -101,7 +101,7 @@ export default function LoginPage() {
           <h1 className="text-5xl font-bold leading-tight text-foreground mb-6">
             O futuro da gestão{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              ESG inteligente.
+              ESG inteligente
             </span>
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed">

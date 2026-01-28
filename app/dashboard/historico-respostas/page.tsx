@@ -12,8 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { getDeletedAnswersHistory } from "@/app/actions/questionnaire-actions"
 import { getCurrentUserProfile } from "@/lib/auth-utils"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 
@@ -36,18 +36,31 @@ async function DeletedAnswersHistoryContent() {
     )
   }
 
-  const result = await getDeletedAnswersHistory()
+  // Buscar histórico diretamente
+  const adminClient = createAdminClient()
+  const { data: history, error } = await adminClient
+    .from("audit_logs")
+    .select(
+      `
+      *,
+      user:profiles!audit_logs_user_id_fkey(full_name, email),
+      question:questions(label, unique_identifier),
+      template:book_templates(name)
+    `
+    )
+    .eq("action", "delete_answer")
+    .eq("entity_type", "book_answer")
+    .order("occurred_at", { ascending: false })
 
-  if (!result.success || !result.data) {
+  if (error) {
+    console.error("[v0] Error fetching history:", error)
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{result.error || "Erro ao carregar histórico"}</AlertDescription>
+        <AlertDescription>Erro ao carregar histórico: {error.message}</AlertDescription>
       </Alert>
     )
   }
-
-  const history = result.data
 
   return (
     <div className="space-y-6">
@@ -59,11 +72,11 @@ async function DeletedAnswersHistoryContent() {
           </p>
         </div>
         <Badge variant="secondary" className="text-sm">
-          {history.length} {history.length === 1 ? "resposta" : "respostas"} deletadas
+          {history?.length || 0} {history?.length === 1 ? "resposta" : "respostas"} deletadas
         </Badge>
       </div>
 
-      {history.length === 0 ? (
+      {!history || history.length === 0 ? (
         <Card>
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center text-center">

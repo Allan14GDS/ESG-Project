@@ -103,6 +103,7 @@ export function QuestionnaireForm({
   const [submittingCorrection, setSubmittingCorrection] = useState<string | null>(null)
   const [clearingRevision, setClearingRevision] = useState<string | null>(null)
   const [deletingAnswer, setDeletingAnswer] = useState<string | null>(null)
+  const [deletedAnswers, setDeletedAnswers] = useState<Set<string>>(new Set())
 
   const handleResponseChange = (questionId: string, value: string) => {
     setResponses((prev) => ({ ...prev, [questionId]: value }))
@@ -222,8 +223,13 @@ export function QuestionnaireForm({
       })
 
       if (result.success) {
+        // Adicionar ao set de respostas deletadas para remover do UI imediatamente
+        setDeletedAnswers((prev) => new Set(prev).add(answerId))
         toast.success("Resposta deletada com sucesso!")
-        router.refresh()
+        // Aguardar um pouco antes de atualizar para garantir que o estado foi atualizado
+        setTimeout(() => {
+          router.refresh()
+        }, 100)
       } else {
         toast.error(result.error || "Erro ao deletar resposta")
       }
@@ -736,15 +742,20 @@ export function QuestionnaireForm({
               {isGestor && userAnswers.length > 0 ? (
                 // Visão do Gestor - Mostrar respostas dos usuários (EXATAMENTE como aparecem para o usuário)
                 <div className="space-y-4">
-                  {userAnswers.map((answer, idx) => {
-                    const userName = answer.profiles?.full_name || answer.profiles?.email || "Usuário"
-                    const answerValue = answer.value || ""
-                    const answerValueJsonb = answer.value_jsonb || {}
-                    const isNA = answerValue === "N/A" || answerValue.includes("Não aplicável")
-                    const hasJustification = answerValueJsonb.justification
-                    
-                    return (
-                      <div key={idx} className="space-y-4 p-4 rounded-lg bg-amber-50/30 border border-amber-200">
+                  {userAnswers
+                    .filter((answer) => answer.id && !deletedAnswers.has(answer.id))
+                    .map((answer, idx) => {
+                      const userName = answer.profiles?.full_name || answer.profiles?.email || "Usuário"
+                      const answerValue = answer.value || ""
+                      const answerValueJsonb = answer.value_jsonb || {}
+                      const isNA = answerValue === "N/A" || answerValue.includes("Não aplicável")
+                      const hasJustification = answerValueJsonb.justification
+
+                      return (
+                        <div
+                          key={answer.id || idx}
+                          className="space-y-4 p-4 rounded-lg bg-amber-50/30 border border-amber-200"
+                        >
                         {/* Header com nome do usuário, status e botão de deletar */}
                         <div className="flex items-center justify-between pb-3 border-b border-amber-200">
                           <div className="flex items-center gap-2">

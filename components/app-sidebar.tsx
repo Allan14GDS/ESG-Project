@@ -14,6 +14,7 @@ import {
   Building2,
   Download,
   History,
+  Trash2,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -225,6 +226,14 @@ const gestorNavigation = [
         url: "/dashboard/historico",
         icon: History,
         description: "Log de auditoria das questões",
+        progress: 0,
+        status: "active",
+      },
+      {
+        title: "Respostas Deletadas",
+        url: "/dashboard/historico-respostas",
+        icon: Trash2,
+        description: "Histórico de respostas deletadas",
         progress: 0,
         status: "active",
       },

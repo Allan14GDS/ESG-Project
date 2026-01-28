@@ -272,30 +272,34 @@ export async function deleteUserAnswer({
       }
     }
 
-    // Salvar no histórico de deletados
-    const { error: historyError } = await adminClient.from("deleted_answers_history").insert({
-      answer_id: answerId,
-      template_id: templateId,
-      question_id: questionId,
-      user_id: answerData.user_id,
-      company_id: answerData.company_id,
+    // Salvar no audit_logs
+    const { error: auditError } = await adminClient.from("audit_logs").insert({
+      user_id: deletedByUserId,
+      action: "delete_answer",
+      entity_type: "book_answer",
+      entity_id: answerId,
+      old_value: {
+        value: answerData.value,
+        value_jsonb: answerData.value_jsonb,
+        evidence_url: answerData.evidence_url,
+        status: answerData.status,
+        user_name: answerData.profiles?.full_name,
+        user_email: answerData.profiles?.email,
+      },
+      new_value: null,
       holding_id: answerData.holding_id,
-      value: answerData.value,
-      value_jsonb: answerData.value_jsonb,
-      evidence_url: answerData.evidence_url,
-      status: answerData.status,
-      deleted_by: deletedByUserId,
-      deleted_at: new Date().toISOString(),
-      deletion_reason: reason || null,
-      original_created_at: answerData.created_at,
-      original_updated_at: answerData.updated_at,
+      company_id: answerData.company_id,
+      book_template_id: templateId,
+      question_id: questionId,
+      answer_text: reason || "Resposta deletada pelo gestor",
+      occurred_at: new Date().toISOString(),
     })
 
-    if (historyError) {
-      console.error("[v0] Error saving to history:", historyError)
+    if (auditError) {
+      console.error("[v0] Error saving to audit_logs:", auditError)
       return {
         success: false,
-        error: "Erro ao salvar no histórico de deletados",
+        error: "Erro ao salvar no histórico de auditoria",
       }
     }
 
@@ -344,20 +348,21 @@ export async function getDeletedAnswersHistory(templateId?: string) {
     const adminClient = createAdminClient()
 
     let query = adminClient
-      .from("deleted_answers_history")
+      .from("audit_logs")
       .select(
         `
         *,
-        deleted_by_profile:profiles!deleted_answers_history_deleted_by_fkey(full_name, email),
-        user_profile:profiles!deleted_answers_history_user_id_fkey(full_name, email),
+        user:profiles!audit_logs_user_id_fkey(full_name, email),
         question:questions(label, unique_identifier),
         template:book_templates(name)
       `
       )
-      .order("deleted_at", { ascending: false })
+      .eq("action", "delete_answer")
+      .eq("entity_type", "book_answer")
+      .order("occurred_at", { ascending: false })
 
     if (templateId) {
-      query = query.eq("template_id", templateId)
+      query = query.eq("book_template_id", templateId)
     }
 
     const { data, error } = await query

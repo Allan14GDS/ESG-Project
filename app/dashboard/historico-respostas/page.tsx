@@ -108,7 +108,7 @@ async function DeletedAnswersHistoryContent() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            {new Date(item.deleted_at).toLocaleDateString("pt-BR", {
+                            {new Date(item.occurred_at).toLocaleDateString("pt-BR", {
                               day: "2-digit",
                               month: "2-digit",
                               year: "numeric",
@@ -139,22 +139,25 @@ async function DeletedAnswersHistoryContent() {
                           <User className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <p className="text-sm font-medium">
-                              {item.user_profile?.full_name || "Usuário desconhecido"}
+                              {item.old_value?.user_name || "Usuário desconhecido"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.user_profile?.email || ""}
+                              {item.old_value?.user_email || ""}
                             </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="max-w-xs">
-                          <p className="text-sm truncate" title={item.value || "N/A"}>
-                            {item.value || "N/A"}
+                          <p
+                            className="text-sm truncate"
+                            title={item.old_value?.value || "N/A"}
+                          >
+                            {item.old_value?.value || "N/A"}
                           </p>
-                          {item.value_jsonb?.justification && (
+                          {item.old_value?.value_jsonb?.justification && (
                             <p className="text-xs text-muted-foreground truncate mt-1">
-                              Justificativa: {item.value_jsonb.justification}
+                              Justificativa: {item.old_value.value_jsonb.justification}
                             </p>
                           )}
                         </div>
@@ -162,40 +165,40 @@ async function DeletedAnswersHistoryContent() {
                       <TableCell>
                         <Badge
                           variant={
-                            item.status === "aprovado"
+                            item.old_value?.status === "aprovado"
                               ? "default"
-                              : item.status === "corrigido"
+                              : item.old_value?.status === "corrigido"
                                 ? "secondary"
                                 : "outline"
                           }
                           className={
-                            item.status === "aprovado"
+                            item.old_value?.status === "aprovado"
                               ? "bg-emerald-100 text-emerald-700"
-                              : item.status === "corrigido"
+                              : item.old_value?.status === "corrigido"
                                 ? "bg-blue-100 text-blue-700"
                                 : ""
                           }
                         >
-                          {item.status === "aprovado"
+                          {item.old_value?.status === "aprovado"
                             ? "Aprovado"
-                            : item.status === "corrigido"
+                            : item.old_value?.status === "corrigido"
                               ? "Corrigido"
-                              : item.status || "Rascunho"}
+                              : item.old_value?.status || "Rascunho"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div>
                           <p className="text-sm font-medium">
-                            {item.deleted_by_profile?.full_name || "Gestor"}
+                            {item.user?.full_name || "Gestor"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {item.deleted_by_profile?.email || ""}
+                            {item.user?.email || ""}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm text-muted-foreground max-w-xs truncate">
-                          {item.deletion_reason || "Sem motivo especificado"}
+                          {item.answer_text || "Sem motivo especificado"}
                         </p>
                       </TableCell>
                     </TableRow>

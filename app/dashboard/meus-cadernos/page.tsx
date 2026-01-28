@@ -30,18 +30,17 @@ export default async function MeusCadernosPage() {
     redirect("/auth/login")
   }
 
-  const [assignmentsResult, templatesResult, organizationsResult, answersResult] = await Promise.allSettled([
-    adminClient
-      .from("book_assignments")
-      .select("caderno_id, organization_id, company_id, role")
-      .eq("user_id", profile.id)
-      .then((res) => res.data || []),
-    Promise.resolve([]), // Will be populated after we get assignments
-    Promise.resolve([]), // Will be populated after we get assignments
-    Promise.resolve([]), // Will be fetched after we know if user is gestor
-  ])
+  // Fetch assignments
+  const { data: assignmentsData, error: assignmentsError } = await adminClient
+    .from("book_assignments")
+    .select("caderno_id, organization_id, company_id, role")
+    .eq("user_id", profile.id)
 
-  const assignments = assignmentsResult.status === "fulfilled" ? assignmentsResult.value : []
+  if (assignmentsError) {
+    console.error("[v0] Error fetching assignments:", assignmentsError)
+  }
+
+  const assignments = assignmentsData || []
   
   // Check if user is a gestor (has any role that includes 'gestor' or 'admin')
   const isGestor = profile.role === "holding_admin" || 
@@ -51,27 +50,40 @@ export default async function MeusCadernosPage() {
   
   // Fetch answers based on user type
   let answers: any[] = []
-  if (isGestor) {
-    // Gestores see ALL answers for companies/holdings they manage
-    const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
-    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
-    
-    if (companyIds.length > 0 || orgIds.length > 0) {
-      const { data: allAnswers } = await adminClient
-        .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id, user_id")
-        .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+  try {
+    if (isGestor) {
+      // Gestores see ALL answers for companies/holdings they manage
+      const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
+      const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
       
-      answers = allAnswers || []
+      if (companyIds.length > 0 || orgIds.length > 0) {
+        const { data: allAnswers, error: answersError } = await adminClient
+          .from("book_answers")
+          .select("template_id, question_id, status, company_id, holding_id, user_id")
+          .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+        
+        if (answersError) {
+          console.error("[v0] Error fetching answers:", answersError)
+        }
+        
+        answers = allAnswers || []
+      }
+    } else {
+      // Regular users only see their own answers
+      const { data: userAnswers, error: answersError } = await adminClient
+        .from("book_answers")
+        .select("template_id, question_id, status, company_id, holding_id")
+        .eq("user_id", profile.id)
+      
+      if (answersError) {
+        console.error("[v0] Error fetching user answers:", answersError)
+      }
+      
+      answers = userAnswers || []
     }
-  } else {
-    // Regular users only see their own answers
-    const { data: userAnswers } = await adminClient
-      .from("book_answers")
-      .select("template_id, question_id, status, company_id, holding_id")
-      .eq("user_id", profile.id)
-    
-    answers = userAnswers || []
+  } catch (error) {
+    console.error("[v0] Exception fetching answers:", error)
+    answers = []
   }
 
   // Get unique caderno IDs
@@ -86,32 +98,47 @@ export default async function MeusCadernosPage() {
   if (cadernoIds.length > 0) {
     const orgIds = [...new Set(assignments.map((a) => a.organization_id).filter(Boolean))]
 
-    const [templatesResult2, organizationsResult2, companiesResult] = await Promise.allSettled([
-      adminClient
+    try {
+      // Fetch templates
+      const { data: templatesData, error: templatesError } = await adminClient
         .from("book_templates")
         .select("*")
         .in("id", cadernoIds)
-        .then((res) => res.data || []),
-      orgIds.length > 0
-        ? adminClient
-            .from("organizations")
-            .select("*")
-            .in("id", orgIds)
-            .then((res) => res.data || [])
-        : Promise.resolve([]),
-      // Also fetch companies from the companies table
-      orgIds.length > 0
-        ? adminClient
-            .from("companies")
-            .select("*")
-            .in("holding_id", orgIds)
-            .then((res) => res.data || [])
-        : Promise.resolve([]),
-    ])
+      
+      if (templatesError) {
+        console.error("[v0] Error fetching templates:", templatesError)
+      }
+      templates = templatesData || []
 
-    templates = templatesResult2.status === "fulfilled" ? templatesResult2.value : []
-    organizations = organizationsResult2.status === "fulfilled" ? organizationsResult2.value : []
-    companies = companiesResult.status === "fulfilled" ? companiesResult.value : []
+      // Fetch organizations if we have org IDs
+      if (orgIds.length > 0) {
+        const { data: organizationsData, error: orgsError } = await adminClient
+          .from("organizations")
+          .select("*")
+          .in("id", orgIds)
+        
+        if (orgsError) {
+          console.error("[v0] Error fetching organizations:", orgsError)
+        }
+        organizations = organizationsData || []
+
+        // Fetch companies from the companies table
+        const { data: companiesData, error: companiesError } = await adminClient
+          .from("companies")
+          .select("*")
+          .in("holding_id", orgIds)
+        
+        if (companiesError) {
+          console.error("[v0] Error fetching companies:", companiesError)
+        }
+        companies = companiesData || []
+      }
+    } catch (error) {
+      console.error("[v0] Exception fetching data:", error)
+      templates = []
+      organizations = []
+      companies = []
+    }
 
     // Separate holdings and organizations with null type
     holdings = organizations.filter((o) => o.type === "holding")
@@ -181,30 +208,40 @@ export default async function MeusCadernosPage() {
   // Get unique template IDs for question count queries
   const uniqueTemplateIds = [...new Set(Array.from(cadernosMap.values()).map(c => c.id))]
 
-  const questionCountPromises = uniqueTemplateIds.map(async (templateId) => {
-    try {
-      const junctionResult = await adminClient
-        .from("book_question_junction")
-        .select("*", { count: "exact", head: true })
-        .eq("book_template_id", templateId)
-      
-      return { templateId, count: junctionResult.count || 0 }
-    } catch (error) {
-      console.error(`[v0] Error counting questions for template ${templateId}:`, error)
-      return { templateId, count: 0 }
-    }
-  })
-
-  const questionCounts = await Promise.allSettled(questionCountPromises)
-
-  // Create a map of templateId -> questionCount
+  // Fetch question counts for all templates
   const questionCountMap = new Map<string, number>()
-  for (const result of questionCounts) {
-    if (result.status === "fulfilled") {
-      const { templateId, count } = result.value
+  
+  try {
+    const questionCountPromises = uniqueTemplateIds.map(async (templateId) => {
+      try {
+        const { count, error } = await adminClient
+          .from("book_question_junction")
+          .select("*", { count: "exact", head: true })
+          .eq("book_template_id", templateId)
+        
+        if (error) {
+          console.error(`[v0] Error counting questions for template ${templateId}:`, error)
+          return { templateId, count: 0 }
+        }
+        
+        return { templateId, count: count || 0 }
+      } catch (error) {
+        console.error(`[v0] Exception counting questions for template ${templateId}:`, error)
+        return { templateId, count: 0 }
+      }
+    })
+
+    const questionCounts = await Promise.all(questionCountPromises)
+    
+    // Populate the map
+    for (const { templateId, count } of questionCounts) {
       questionCountMap.set(templateId, count)
     }
+  } catch (error) {
+    console.error("[v0] Exception fetching question counts:", error)
   }
+
+
 
   // Update cadernos with question counts and answers (per company)
   for (const [uniqueKey, caderno] of cadernosMap) {

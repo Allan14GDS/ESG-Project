@@ -24,8 +24,8 @@ async function DeletedAnswersHistoryContent() {
     redirect("/auth/login")
   }
 
-  // Apenas gestores podem acessar
-  if (profile.role !== "gestor") {
+  // Apenas gestores e holding_admin podem acessar
+  if (profile.role !== "gestor" && profile.role !== "holding_admin") {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />

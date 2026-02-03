@@ -83,8 +83,7 @@ export default async function MeusCadernosPage() {
       answers = userAnswers || []
     }
     
-    console.log("[v0] Total answers fetched:", answers.length)
-    console.log("[v0] All answers data:", JSON.stringify(answers, null, 2))
+
   } catch (error) {
     console.error("[v0] Exception fetching answers:", error)
     answers = []
@@ -263,8 +262,8 @@ export default async function MeusCadernosPage() {
       }
       
       // If no company_id (direct to holding), match answers for that holding
-      // Only accept answers with matching holding_id AND no company_id
-      return a.holding_id === caderno.organization_id && !a.company_id
+      // Accept answers with matching holding_id (regardless of whether answer has company_id or not)
+      return a.holding_id === caderno.organization_id
     })
 
     // Count unique questions answered for this specific company
@@ -274,17 +273,6 @@ export default async function MeusCadernosPage() {
     const needsCorrectionCount = answeredForCaderno.filter((a) =>
       a.status === "rejeitado" || a.status === "pendente_revisao"
     ).length
-
-    console.log(`[v0] Processing caderno ${caderno.name}:`, {
-      uniqueKey,
-      templateId: caderno.id,
-      companyId: caderno.company_id,
-      totalAnswers: answers.length,
-      answeredForCaderno: answeredForCaderno.length,
-      answeredForCadernoData: answeredForCaderno,
-      uniqueQuestions: uniqueAnsweredQuestions.size,
-      questionCount: questionCount
-    })
 
     caderno.questionsCount = questionCount
     caderno.answeredCount = uniqueAnsweredQuestions.size
@@ -298,14 +286,6 @@ export default async function MeusCadernosPage() {
     } else {
       caderno.status = "in_progress"
     }
-    
-    console.log(`[v0] Caderno ${caderno.name} (${uniqueKey}):`, {
-      company_id: caderno.company_id,
-      questionsCount: caderno.questionsCount,
-      answeredCount: caderno.answeredCount,
-      status: caderno.status,
-      answersFound: answeredForCaderno.length
-    })
   }
 
   const cadernos = Array.from(cadernosMap.values())

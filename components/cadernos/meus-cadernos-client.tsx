@@ -25,6 +25,15 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
     })
     holding.companies.forEach((company: any) => {
       console.log(`[v0]   Company ${company.name}: ${company.cadernos?.length || 0} cadernos`)
+      company.cadernos?.forEach((caderno: any) => {
+        console.log(`[v0]     Caderno "${caderno.name}":`, {
+          id: caderno.id,
+          company_id: caderno.company_id,
+          questionsCount: caderno.questionsCount,
+          answeredCount: caderno.answeredCount,
+          status: caderno.status
+        })
+      })
     })
   })
 

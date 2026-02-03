@@ -58,7 +58,7 @@ interface QuestionnaireFormProps {
   holdingId: string | null
   userRole: string
   isGestor: boolean
-  existingAnswers?: Record<string, { value: string; evidence_url?: string; status?: string }>
+  existingAnswers?: Record<string, { value: string; evidence_url?: string; status?: string; value_jsonb?: any }>
   answersByQuestion?: Record<string, any[]>
 }
 
@@ -92,8 +92,28 @@ export function QuestionnaireForm({
     }
     return initial
   })
-  const [needsJustification, setNeedsJustification] = useState<Record<string, boolean>>({})
-  const [justifications, setJustifications] = useState<Record<string, string>>({})
+  const [needsJustification, setNeedsJustification] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const [qId, data] of Object.entries(existingAnswers)) {
+      // Check if justification exists in value_jsonb
+      const valueJsonb = (data as any).value_jsonb
+      if (valueJsonb && valueJsonb.justification) {
+        initial[qId] = true
+      }
+    }
+    return initial
+  })
+  const [justifications, setJustifications] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    for (const [qId, data] of Object.entries(existingAnswers)) {
+      // Extract justification from value_jsonb
+      const valueJsonb = (data as any).value_jsonb
+      if (valueJsonb && valueJsonb.justification) {
+        initial[qId] = valueJsonb.justification
+      }
+    }
+    return initial
+  })
   const [savedQuestions, setSavedQuestions] = useState<Set<string>>(new Set(Object.keys(existingAnswers)))
   const [savingQuestion, setSavingQuestion] = useState<string | null>(null)
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
@@ -226,7 +246,7 @@ export function QuestionnaireForm({
         // Adicionar ao set de respostas deletadas para remover do UI imediatamente
         setDeletedAnswers((prev) => new Set(prev).add(answerId))
         
-        // Limpar os responses e outros estados relacionados à questão
+        // Limpar os responses e outros estados relacionados à quest��o
         setResponses((prev) => {
           const newResponses = { ...prev }
           delete newResponses[questionId]

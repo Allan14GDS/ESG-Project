@@ -84,7 +84,7 @@ export default async function MeusCadernosPage() {
     }
     
     console.log("[v0] Total answers fetched:", answers.length)
-    console.log("[v0] Sample answers:", answers.slice(0, 3))
+    console.log("[v0] All answers data:", JSON.stringify(answers, null, 2))
   } catch (error) {
     console.error("[v0] Exception fetching answers:", error)
     answers = []
@@ -281,7 +281,9 @@ export default async function MeusCadernosPage() {
       companyId: caderno.company_id,
       totalAnswers: answers.length,
       answeredForCaderno: answeredForCaderno.length,
-      uniqueQuestions: uniqueAnsweredQuestions.size
+      answeredForCadernoData: answeredForCaderno,
+      uniqueQuestions: uniqueAnsweredQuestions.size,
+      questionCount: questionCount
     })
 
     caderno.questionsCount = questionCount

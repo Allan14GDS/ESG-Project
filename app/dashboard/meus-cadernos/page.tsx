@@ -82,6 +82,9 @@ export default async function MeusCadernosPage() {
       
       answers = userAnswers || []
     }
+    
+    console.log("[v0] Total answers fetched:", answers.length)
+    console.log("[v0] Sample answers:", answers.slice(0, 3))
   } catch (error) {
     console.error("[v0] Exception fetching answers:", error)
     answers = []
@@ -271,6 +274,15 @@ export default async function MeusCadernosPage() {
     const needsCorrectionCount = answeredForCaderno.filter((a) =>
       a.status === "rejeitado" || a.status === "pendente_revisao"
     ).length
+
+    console.log(`[v0] Processing caderno ${caderno.name}:`, {
+      uniqueKey,
+      templateId: caderno.id,
+      companyId: caderno.company_id,
+      totalAnswers: answers.length,
+      answeredForCaderno: answeredForCaderno.length,
+      uniqueQuestions: uniqueAnsweredQuestions.size
+    })
 
     caderno.questionsCount = questionCount
     caderno.answeredCount = uniqueAnsweredQuestions.size

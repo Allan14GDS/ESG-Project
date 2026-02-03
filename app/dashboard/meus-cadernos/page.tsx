@@ -254,16 +254,28 @@ export default async function MeusCadernosPage() {
     const answeredForCaderno = answers.filter((a: any) => {
       if (a.template_id !== caderno.id) return false
       
+      console.log(`[v0] Checking answer for caderno ${caderno.name}:`, {
+        answerCompanyId: a.company_id,
+        answerHoldingId: a.holding_id,
+        cadernoCompanyId: caderno.company_id,
+        cadernoOrgId: caderno.organization_id,
+        questionId: a.question_id
+      })
+      
       // If caderno has company_id (assigned to specific company)
       if (caderno.company_id) {
         // STRICT MATCH: Only count answers that have the exact same company_id
         // This ensures we don't mix answers from different companies
-        return a.company_id === caderno.company_id
+        const match = a.company_id === caderno.company_id
+        console.log(`[v0] Caderno has company_id, match: ${match}`)
+        return match
       }
       
       // If no company_id (direct to holding), match answers for that holding
       // Accept answers with matching holding_id (regardless of whether answer has company_id or not)
-      return a.holding_id === caderno.organization_id
+      const match = a.holding_id === caderno.organization_id
+      console.log(`[v0] Caderno is direct to holding, match: ${match}`)
+      return match
     })
 
     // Count unique questions answered for this specific company

@@ -279,7 +279,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   }
 
   const answersByQuestion: Record<string, any[]> = {}
-  const responsesMap: Record<string, { value: string; evidence_url?: string; status?: string }> = {}
+  const responsesMap: Record<string, { value: string; evidence_url?: string; status?: string; value_jsonb?: any }> = {}
 
   if (existingAnswers) {
     for (const answer of existingAnswers) {
@@ -303,11 +303,12 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
           }
         }
 
-        responsesMap[answer.question_id] = {
-          value: displayValue,
-          evidence_url: answer.evidence_url || "",
-          status: answer.status || "rascunho",
-        }
+      responsesMap[answer.question_id] = {
+        value: displayValue,
+        evidence_url: answer.evidence_url || "",
+        status: answer.status || "rascunho",
+        value_jsonb: answer.value_jsonb || null,
+      }
         
         console.log("[v0] Mapeando resposta:", {
           question_id: answer.question_id,

@@ -82,6 +82,8 @@ export default async function MeusCadernosPage() {
       
       answers = userAnswers || []
     }
+    
+
   } catch (error) {
     console.error("[v0] Exception fetching answers:", error)
     answers = []
@@ -260,8 +262,8 @@ export default async function MeusCadernosPage() {
       }
       
       // If no company_id (direct to holding), match answers for that holding
-      // Only accept answers with matching holding_id AND no company_id
-      return a.holding_id === caderno.organization_id && !a.company_id
+      // Accept answers with matching holding_id (regardless of whether answer has company_id or not)
+      return a.holding_id === caderno.organization_id
     })
 
     // Count unique questions answered for this specific company
@@ -284,14 +286,6 @@ export default async function MeusCadernosPage() {
     } else {
       caderno.status = "in_progress"
     }
-    
-    console.log(`[v0] Caderno ${caderno.name} (${uniqueKey}):`, {
-      company_id: caderno.company_id,
-      questionsCount: caderno.questionsCount,
-      answeredCount: caderno.answeredCount,
-      status: caderno.status,
-      answersFound: answeredForCaderno.length
-    })
   }
 
   const cadernos = Array.from(cadernosMap.values())

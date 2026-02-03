@@ -195,16 +195,6 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       }
     }) || []
 
-  // DIAGNÓSTICO: Buscar TODAS as respostas deste template primeiro
-  const { data: allAnswersForTemplate } = await adminClient
-    .from("book_answers")
-    .select("id, question_id, company_id, holding_id, user_id")
-    .eq("template_id", templateId)
-  
-  console.log("[v0] ===== DIAGNÓSTICO: TODAS AS RESPOSTAS DO TEMPLATE =====")
-  console.log("[v0] Total de respostas no template:", allAnswersForTemplate?.length || 0)
-  console.log("[v0] Dados das respostas:", JSON.stringify(allAnswersForTemplate, null, 2))
-
   // Buscar respostas existentes separadamente
   // CORREÇÃO: Remover JOIN problemático que causa erro "more than one relationship"
   let answersQuery = adminClient

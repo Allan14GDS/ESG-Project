@@ -261,9 +261,9 @@ export default async function MeusCadernosPage() {
         return a.company_id === caderno.company_id
       }
       
-      // If no company_id (direct to holding), match answers for that holding
-      // Accept answers with matching holding_id (regardless of whether answer has company_id or not)
-      return a.holding_id === caderno.organization_id
+      // If no company_id (direct to holding), should not count any answers here
+      // Holding-level cadernos get their counts when instantiated per-company
+      return false
     })
 
     // Count unique questions answered for this specific company
@@ -302,11 +302,45 @@ export default async function MeusCadernosPage() {
 
     const companiesWithCadernos = companiesInHolding.map((company) => {
       // Filter cadernos that are assigned to this specific company
-      // Also include directCadernos (holding-level) that should be visible to all companies
-      const cadernosForCompany = cadernos.filter((caderno) => 
-        caderno.company_id === company.id ||
-        (caderno.organization_id === holding.id && !caderno.company_id)
+      const companyCadernos = cadernos.filter((caderno) => 
+        caderno.company_id === company.id
       )
+      
+      // For holding-level cadernos, create company-specific instances with correct answer counts
+      const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
+        const questionCount = questionCountMap.get(holdingCaderno.id) || 0
+        
+        // Filter answers for this company specifically
+        const answeredForCaderno = answers.filter((a: any) => 
+          a.template_id === holdingCaderno.id && a.company_id === company.id
+        )
+        
+        const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
+        const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
+          a.status === "rejeitado" || a.status === "pendente_revisao"
+        ).length
+        
+        const answeredCount = uniqueAnsweredQuestions.size
+        let status: "pending" | "in_progress" | "completed" = "pending"
+        if (answeredCount === 0) {
+          status = "pending"
+        } else if (answeredCount >= questionCount && questionCount > 0) {
+          status = "completed"
+        } else {
+          status = "in_progress"
+        }
+        
+        return {
+          ...holdingCaderno,
+          company_id: company.id, // Override with company ID
+          questionsCount: questionCount,
+          answeredCount: answeredCount,
+          needsCorrection: needsCorrectionCount,
+          status: status,
+        }
+      })
+      
+      const cadernosForCompany = [...companyCadernos, ...holdingCadernosForCompany]
 
       return {
         ...company,

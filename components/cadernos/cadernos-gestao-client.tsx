@@ -71,6 +71,12 @@ interface Assignment {
   } | null
 }
 
+interface ProgressEntry {
+  questionsCount: number
+  answeredCount: number
+  status: "pending" | "in_progress" | "completed"
+}
+
 interface CadernosGestaoClientProps {
   templates: Template[]
   users: any[]
@@ -80,6 +86,7 @@ interface CadernosGestaoClientProps {
   organizations: any[]
   companies: any[]
   companyTemplates: any[]
+  progressMap: Record<string, ProgressEntry>
 }
 
 export function CadernosGestaoClient({
@@ -91,6 +98,7 @@ export function CadernosGestaoClient({
   organizations,
   companies,
   companyTemplates,
+  progressMap,
 }: CadernosGestaoClientProps) {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
@@ -317,6 +325,37 @@ export function CadernosGestaoClient({
     }
   }
 
+  // Get progress for a specific assignment (template + company)
+  const getAssignmentProgress = (cadernoId: string, companyId: string | null | undefined) => {
+    if (!companyId) return null
+    const key = `${cadernoId}_${companyId}`
+    return progressMap[key] || null
+  }
+
+  const getStatusBadge = (status: "pending" | "in_progress" | "completed") => {
+    switch (status) {
+      case "completed":
+        return (
+          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
+            Concluído
+          </Badge>
+        )
+      case "in_progress":
+        return (
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+            Em Progresso
+          </Badge>
+        )
+      case "pending":
+      default:
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Pendente
+          </Badge>
+        )
+    }
+  }
+
   const openAssignDialog = (user: any) => {
     setSelectedUser(user)
     setSelectedTemplateIds([])
@@ -454,6 +493,7 @@ export function CadernosGestaoClient({
                               <TableHead>Caderno</TableHead>
                               <TableHead>Holding</TableHead>
                               <TableHead>Empresa</TableHead>
+                              <TableHead>Progresso</TableHead>
                               <TableHead>Função</TableHead>
                               <TableHead>Atribuído em</TableHead>
                               <TableHead className="w-[80px]">Ações</TableHead>
@@ -483,6 +523,25 @@ export function CadernosGestaoClient({
                                     ) : (
                                       <span className="italic text-muted-foreground/60">Não especificada</span>
                                     )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {(() => {
+                                      const progress = getAssignmentProgress(assignment.caderno_id, assignment.company_id)
+                                      if (!progress) {
+                                        return <span className="text-xs text-muted-foreground/60">-</span>
+                                      }
+                                      return (
+                                        <div className="flex flex-col gap-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-foreground">
+                                              {progress.answeredCount}/{progress.questionsCount}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">questões</span>
+                                          </div>
+                                          {getStatusBadge(progress.status)}
+                                        </div>
+                                      )
+                                    })()}
                                   </TableCell>
                                   <TableCell>{getRoleBadge(assignment.role)}</TableCell>
                                   <TableCell className="text-muted-foreground">
@@ -615,17 +674,40 @@ export function CadernosGestaoClient({
                             <TableRow className="bg-muted/20">
                               <TableHead>Usuário</TableHead>
                               <TableHead>Email</TableHead>
+                              <TableHead>Empresa</TableHead>
+                              <TableHead>Progresso</TableHead>
                               <TableHead>Função</TableHead>
                               <TableHead>Atribuído em</TableHead>
                               <TableHead className="w-[80px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {templateAssignments.map((assignment) => (
+                            {templateAssignments.map((assignment) => {
+                              const company = companies.find((c: any) => c.id === assignment.company_id)
+                              const progress = getAssignmentProgress(assignment.caderno_id, assignment.company_id)
+                              return (
                               <TableRow key={assignment.id}>
                                 <TableCell className="font-medium">{assignment.profiles?.full_name || "—"}</TableCell>
                                 <TableCell className="text-muted-foreground">
                                   {assignment.profiles?.email || "—"}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {company?.name || <span className="italic text-muted-foreground/60">N/A</span>}
+                                </TableCell>
+                                <TableCell>
+                                  {progress ? (
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-foreground">
+                                          {progress.answeredCount}/{progress.questionsCount}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">questões</span>
+                                      </div>
+                                      {getStatusBadge(progress.status)}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/60">-</span>
+                                  )}
                                 </TableCell>
                                 <TableCell>{getRoleBadge(assignment.role)}</TableCell>
                                 <TableCell className="text-muted-foreground">
@@ -673,7 +755,8 @@ export function CadernosGestaoClient({
                                   </AlertDialog>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                              )
+                            })}
                           </TableBody>
                         </Table>
                       </CardContent>

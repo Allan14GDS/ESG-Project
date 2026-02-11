@@ -487,109 +487,145 @@ export function CadernosGestaoClient({
 
                     {userAssignments.length > 0 && (
                       <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/20">
-                              <TableHead>Caderno</TableHead>
-                              <TableHead>Holding</TableHead>
-                              <TableHead>Empresa</TableHead>
-                              <TableHead>Progresso</TableHead>
-                              <TableHead>Função</TableHead>
-                              <TableHead>Atribuído em</TableHead>
-                              <TableHead className="w-[80px]">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {userAssignments.map((assignment) => {
-                              const template = templates.find((t) => t.id === assignment.caderno_id)
-                              
-                              // Get holding from organization_id
-                              const holding = organizations.find((o) => o.id === assignment.organization_id)
-                              
-                              // Get company from company_id (if exists in assignment)
-                              const company = companies.find((c) => c.id === assignment.company_id)
-                              
-                              return (
-                                <TableRow key={assignment.id}>
-                                  <TableCell className="font-medium">
-                                    {template?.name || assignment.caderno_id}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">
-                                    {holding?.name || "N/A"}
-                                  </TableCell>
-                                  <TableCell className="text-sm">
-                                    {company?.name ? (
-                                      <span className="text-muted-foreground">{company.name}</span>
-                                    ) : (
-                                      <span className="italic text-muted-foreground/60">Não especificada</span>
+                        {(() => {
+                          // Group assignments by company
+                          const groupedByCompany: Record<string, { company: any; holding: any; assignments: typeof userAssignments }> = {}
+                          for (const assignment of userAssignments) {
+                            const companyKey = assignment.company_id || "_no_company"
+                            if (!groupedByCompany[companyKey]) {
+                              const company = companies.find((c: any) => c.id === assignment.company_id)
+                              const holding = organizations.find((o: any) => o.id === assignment.organization_id)
+                              groupedByCompany[companyKey] = { company, holding, assignments: [] }
+                            }
+                            groupedByCompany[companyKey].assignments.push(assignment)
+                          }
+
+                          return Object.entries(groupedByCompany).map(([companyKey, group], groupIndex) => {
+                            // Compute company-level summary
+                            const totalCadernos = group.assignments.length
+                            const completedCadernos = group.assignments.filter((a) => {
+                              const progress = getAssignmentProgress(a.caderno_id, a.company_id)
+                              return progress?.status === "completed"
+                            }).length
+
+                            return (
+                              <div key={companyKey}>
+                                {/* Company sub-header */}
+                                <div className={`flex items-center justify-between border-b bg-muted/40 px-4 py-3 ${groupIndex > 0 ? "border-t" : ""}`}>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+                                      <BookMarked className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold text-foreground">
+                                        {group.company?.name || "Empresa não especificada"}
+                                      </p>
+                                      {group.holding?.name && (
+                                        <p className="text-xs text-muted-foreground">{group.holding.name}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {totalCadernos} caderno{totalCadernos !== 1 ? "s" : ""}
+                                    </Badge>
+                                    {completedCadernos > 0 && (
+                                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-xs dark:bg-emerald-900/30 dark:text-emerald-400">
+                                        {completedCadernos} concluído{completedCadernos !== 1 ? "s" : ""}
+                                      </Badge>
                                     )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {(() => {
-                                      const progress = getAssignmentProgress(assignment.caderno_id, assignment.company_id)
-                                      if (!progress) {
-                                        return <span className="text-xs text-muted-foreground/60">-</span>
-                                      }
+                                  </div>
+                                </div>
+
+                                {/* Cadernos table for this company */}
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="bg-muted/10">
+                                      <TableHead>Caderno</TableHead>
+                                      <TableHead>Progresso</TableHead>
+                                      <TableHead>Função</TableHead>
+                                      <TableHead>Atribuído em</TableHead>
+                                      <TableHead className="w-[80px]">Ações</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {group.assignments.map((assignment) => {
+                                      const template = templates.find((t) => t.id === assignment.caderno_id)
                                       return (
-                                        <div className="flex flex-col gap-1">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-sm font-semibold text-foreground">
-                                              {progress.answeredCount}/{progress.questionsCount}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">questões</span>
-                                          </div>
-                                          {getStatusBadge(progress.status)}
-                                        </div>
-                                      )
-                                    })()}
-                                  </TableCell>
-                                  <TableCell>{getRoleBadge(assignment.role)}</TableCell>
-                                  <TableCell className="text-muted-foreground">
-                                    {new Date(assignment.created_at).toLocaleDateString("pt-BR")}
-                                  </TableCell>
-                                  <TableCell>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-destructive hover:text-destructive"
-                                          disabled={isRemoving === assignment.id}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Tem certeza que deseja remover o caderno <strong>"{template?.name}"</strong>{" "}
-                                            de <strong>{user.full_name || user.email}</strong>?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() =>
-                                              handleRemoveAssignment(
-                                                assignment.id,
-                                                user.full_name || user.email,
-                                                template?.name || "Caderno",
+                                        <TableRow key={assignment.id}>
+                                          <TableCell className="font-medium">
+                                            {template?.name || assignment.caderno_id}
+                                          </TableCell>
+                                          <TableCell>
+                                            {(() => {
+                                              const progress = getAssignmentProgress(assignment.caderno_id, assignment.company_id)
+                                              if (!progress) {
+                                                return <span className="text-xs text-muted-foreground/60">-</span>
+                                              }
+                                              return (
+                                                <div className="flex flex-col gap-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-semibold text-foreground">
+                                                      {progress.answeredCount}/{progress.questionsCount}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">questões</span>
+                                                  </div>
+                                                  {getStatusBadge(progress.status)}
+                                                </div>
                                               )
-                                            }
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          >
-                                            Remover
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                          </TableBody>
-                        </Table>
+                                            })()}
+                                          </TableCell>
+                                          <TableCell>{getRoleBadge(assignment.role)}</TableCell>
+                                          <TableCell className="text-muted-foreground">
+                                            {new Date(assignment.created_at).toLocaleDateString("pt-BR")}
+                                          </TableCell>
+                                          <TableCell>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="text-destructive hover:text-destructive"
+                                                  disabled={isRemoving === assignment.id}
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    Tem certeza que deseja remover o caderno <strong>{`"${template?.name}"`}</strong>{" "}
+                                                    de <strong>{user.full_name || user.email}</strong>?
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                  <AlertDialogAction
+                                                    onClick={() =>
+                                                      handleRemoveAssignment(
+                                                        assignment.id,
+                                                        user.full_name || user.email,
+                                                        template?.name || "Caderno",
+                                                      )
+                                                    }
+                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                  >
+                                                    Remover
+                                                  </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                          </TableCell>
+                                        </TableRow>
+                                      )
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )
+                          })
+                        })()}
                       </CardContent>
                     )}
 

@@ -569,21 +569,14 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 py-2">
         {navigationToShow.map((section, sectionIndex) => (
           <div key={section.title}>
             <SidebarGroup className="py-2">
-              <SidebarGroupLabel className="px-3 py-2 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <SidebarGroupLabel className="px-3 py-2 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
                 {section.title}
               </SidebarGroupLabel>
-              {open && (
-                <div className="px-3 pb-2">
-                  <p className="text-[10px] md:text-xs text-muted-foreground/80 leading-relaxed">
-                    {section.description}
-                  </p>
-                </div>
-              )}
-              <SidebarGroupContent>
+              <SidebarGroupContent className="mt-1">
                 <SidebarMenu className="gap-1">
                   {section.items.map((item) => {
                     const Icon = item.icon
@@ -592,24 +585,23 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           asChild
-                          className={`relative cursor-pointer transition-all rounded-md ${
+                          className={`relative cursor-pointer transition-colors rounded-md h-auto ${
                             isActive
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "hover:bg-muted/50 text-foreground"
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "hover:bg-muted text-foreground"
                           }`}
                         >
-                          <a href={item.url} className="flex items-center gap-3 px-3 py-2">
-                            <Icon className="h-4 w-4 shrink-0" />
+                          <a href={item.url} className="flex items-center gap-3 px-3 py-2.5 w-full min-h-[40px]">
+                            <Icon className="h-[17px] w-[17px] shrink-0" />
                             {open && (
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium leading-none">{item.title}</p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.description}</p>
-                              </div>
+                              <span className="text-[13.5px] font-medium leading-none flex-1 text-left">
+                                {item.title}
+                              </span>
                             )}
                             {item.progress > 0 && open && (
-                              <div className="flex items-center gap-2 ml-auto">
-                                <span className="text-xs font-semibold whitespace-nowrap">{item.progress}%</span>
-                              </div>
+                              <span className="text-xs font-semibold whitespace-nowrap shrink-0 ml-auto">
+                                {item.progress}%
+                              </span>
                             )}
                           </a>
                         </SidebarMenuButton>
@@ -619,7 +611,7 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-2" />}
+            {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-4" />}
           </div>
         ))}
       </SidebarContent>

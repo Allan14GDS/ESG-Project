@@ -12,6 +12,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState<string>("")
   const [userRole, setUserRole] = useState<"user" | "holding_admin" | "admin_main">("user")
   const [isLoading, setIsLoading] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
 
   const shouldHideSidebar =
     pathname.startsWith("/auth") ||
@@ -20,6 +21,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     pathname === "/" // Hide sidebar on homepage
 
   useEffect(() => {
+    setIsMounted(true)
     const abortController = new AbortController()
 
     async function fetchUserData() {
@@ -60,11 +62,13 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Show children immediately for pages that should hide sidebar to avoid hydration issues
   if (shouldHideSidebar) {
     return <>{children}</>
   }
 
-  if (isLoading) {
+  // Prevent hydration mismatch by showing consistent content during SSR
+  if (!isMounted || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div>Carregando...</div>

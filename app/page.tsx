@@ -3,12 +3,20 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { isDemoMode } from "@/lib/demo-mode"
 
 export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
+      // In demo mode, redirect to dashboard directly
+      if (isDemoMode()) {
+        console.log("[v0] Demo mode active - redirecting to dashboard")
+        router.push("/dashboard/meus-cadernos")
+        return
+      }
+
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()

@@ -7,8 +7,20 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { BookOpen, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Building2, ChevronRight } from "lucide-react"
 import { MeusCadernosClient } from "@/components/cadernos/meus-cadernos-client"
+import { DemoDashboard } from "@/components/demo-dashboard"
+import { DEMO_USER } from "@/lib/demo-mode"
 
 export default async function MeusCadernosPage() {
+  // Check for demo mode
+  const hasSupabaseConfig = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+
+  if (!hasSupabaseConfig) {
+    return <DemoDashboard userName={DEMO_USER.full_name} />
+  }
+
   const supabase = await createClient()
   const adminClient = createAdminClient()
 

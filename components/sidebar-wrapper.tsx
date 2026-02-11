@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { isDemoMode, DEMO_USER } from "@/lib/demo-mode"
 
 export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -25,6 +26,16 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     const abortController = new AbortController()
 
     async function fetchUserData() {
+      // In demo mode, use demo user data
+      if (isDemoMode()) {
+        console.log("[v0] Demo mode active - using demo user")
+        setUserEmail(DEMO_USER.email)
+        setUserName(DEMO_USER.full_name)
+        setUserRole(DEMO_USER.role)
+        setIsLoading(false)
+        return
+      }
+
       try {
         const response = await fetch("/api/profile", {
           signal: abortController.signal,

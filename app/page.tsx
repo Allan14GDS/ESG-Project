@@ -30,8 +30,8 @@ export default function HomePage() {
 
           const userRole = profile?.role
 
-          // Redirect admins to admin panel, regular users to dashboard
-          if (userRole === "admin_main" || userRole === "admin") {
+          // Redirect admin_main to admin panel, everyone else (including holding_admin) to meus-cadernos
+          if (userRole === "admin_main") {
             router.push("/admin")
           } else {
             router.push("/dashboard/meus-cadernos")

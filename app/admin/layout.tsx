@@ -61,14 +61,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Check if user has admin access
   if (!profile || !profile.is_active) {
     console.log("[v0] Admin layout - Redirecting to dashboard: profile not found or inactive")
-    redirect("/dashboard")
+    redirect("/dashboard/meus-cadernos")
   }
 
   const hasAdminAccess = profile.role === "admin_main" || profile.role === "holding_admin"
 
   if (!hasAdminAccess) {
     console.log("[v0] Admin layout - Redirecting to dashboard: no admin access", { role: profile.role })
-    redirect("/dashboard")
+    redirect("/dashboard/meus-cadernos")
   }
 
   console.log("[v0] Admin layout - Access granted", { role: profile.role })

@@ -572,19 +572,19 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
       <SidebarContent className="px-2">
         {navigationToShow.map((section, sectionIndex) => (
           <div key={section.title}>
-            <SidebarGroup className="py-2">
-              <SidebarGroupLabel className="px-3 py-2 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <SidebarGroup className="py-3">
+              <SidebarGroupLabel className="px-3 py-2.5 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}
               </SidebarGroupLabel>
               {open && (
-                <div className="px-3 pb-2">
+                <div className="px-3 pb-3">
                   <p className="text-[10px] md:text-xs text-muted-foreground/80 leading-relaxed">
                     {section.description}
                   </p>
                 </div>
               )}
               <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
+                <SidebarMenu className="gap-1.5">
                   {section.items.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.url
@@ -592,18 +592,18 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           asChild
-                          className={`relative cursor-pointer transition-all rounded-md ${
+                          className={`relative cursor-pointer transition-all rounded-lg ${
                             isActive
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "hover:bg-muted/50 text-foreground"
                           }`}
                         >
-                          <a href={item.url} className="flex items-center gap-3 px-3 py-2">
+                          <a href={item.url} className="flex items-center gap-3 px-3 py-3">
                             <Icon className="h-4 w-4 shrink-0" />
                             {open && (
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium leading-none">{item.title}</p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.description}</p>
+                                <p className="text-sm font-medium leading-snug">{item.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-1 leading-relaxed">{item.description}</p>
                               </div>
                             )}
                             {item.progress > 0 && open && (
@@ -619,7 +619,7 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-2" />}
+            {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-3" />}
           </div>
         ))}
       </SidebarContent>

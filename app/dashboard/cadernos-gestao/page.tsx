@@ -283,6 +283,104 @@ export default async function CadernosGestaoPage() {
   console.log("[v0] Cadernos Gestao - Companies count:", companies?.length || 0)
   console.log("[v0] Cadernos Gestao - Company templates count:", companyTemplates?.length || 0)
 
+  // --- Fetch question counts per template (replicating meus-cadernos logic) ---
+  const uniqueTemplateIds = [...new Set((templates || []).map((t: any) => t.id))]
+  const questionCountMap: Record<string, number> = {}
+
+  if (uniqueTemplateIds.length > 0) {
+    try {
+      const questionCountPromises = uniqueTemplateIds.map(async (templateId: string) => {
+        try {
+          const { count, error } = await adminClient
+            .from("book_question_junction")
+            .select("*", { count: "exact", head: true })
+            .eq("book_template_id", templateId)
+
+          if (error) {
+            console.error(`[v0] Error counting questions for template ${templateId}:`, error)
+            return { templateId, count: 0 }
+          }
+
+          return { templateId, count: count || 0 }
+        } catch (error) {
+          console.error(`[v0] Exception counting questions for template ${templateId}:`, error)
+          return { templateId, count: 0 }
+        }
+      })
+
+      const questionCounts = await Promise.all(questionCountPromises)
+      for (const { templateId, count } of questionCounts) {
+        questionCountMap[templateId] = count
+      }
+    } catch (error) {
+      console.error("[v0] Exception fetching question counts:", error)
+    }
+  }
+
+  // --- Fetch all book_answers for the allowed organizations/companies ---
+  // This gives us answered counts per (template, company, user)
+  let allAnswers: any[] = []
+  try {
+    if (allowedOrgIds.length > 0) {
+      // Get all company IDs within those orgs
+      const companyIds = (companies || []).map((c: any) => c.id)
+      
+      if (companyIds.length > 0) {
+        const { data: answersData, error: answersError } = await adminClient
+          .from("book_answers")
+          .select("template_id, question_id, status, company_id, user_id")
+          .in("company_id", companyIds)
+
+        if (answersError) {
+          console.error("[v0] Error fetching book_answers:", answersError)
+        }
+        allAnswers = answersData || []
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Exception fetching book_answers:", error)
+  }
+
+  // --- Build progress map keyed by "templateId_companyId" ---
+  // Each entry has: { questionsCount, answeredCount, status }
+  const progressMap: Record<string, { questionsCount: number; answeredCount: number; status: "pending" | "in_progress" | "completed" }> = {}
+
+  if (assignments && assignments.length > 0) {
+    // Get unique (caderno_id, company_id) pairs from assignments
+    const uniquePairs = new Set<string>()
+    for (const assignment of assignments) {
+      const companyId = (assignment as any).company_id
+      if (companyId) {
+        uniquePairs.add(`${assignment.caderno_id}_${companyId}`)
+      }
+    }
+
+    for (const pairKey of uniquePairs) {
+      const [templateId, companyId] = pairKey.split("_")
+      const questionsCount = questionCountMap[templateId] || 0
+
+      // Filter answers for this specific template AND company
+      const answersForPair = allAnswers.filter(
+        (a: any) => a.template_id === templateId && a.company_id === companyId
+      )
+
+      // Count unique questions answered (any user, since gestores see overall progress)
+      const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
+      const answeredCount = uniqueAnsweredQuestions.size
+
+      let status: "pending" | "in_progress" | "completed" = "pending"
+      if (answeredCount === 0) {
+        status = "pending"
+      } else if (answeredCount >= questionsCount && questionsCount > 0) {
+        status = "completed"
+      } else {
+        status = "in_progress"
+      }
+
+      progressMap[pairKey] = { questionsCount, answeredCount, status }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -295,6 +393,7 @@ export default async function CadernosGestaoPage() {
           organizations={organizations || []}
           companies={companies || []}
           companyTemplates={companyTemplates || []}
+          progressMap={progressMap}
         />
       </div>
     </div>

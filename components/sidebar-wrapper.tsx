@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { isDemoMode, DEMO_USER } from "@/lib/demo-mode"
 
 export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -12,6 +13,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState<string>("")
   const [userRole, setUserRole] = useState<"user" | "holding_admin" | "admin_main">("user")
   const [isLoading, setIsLoading] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
 
   const shouldHideSidebar =
     pathname.startsWith("/auth") ||
@@ -20,9 +22,20 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     pathname === "/" // Hide sidebar on homepage
 
   useEffect(() => {
+    setIsMounted(true)
     const abortController = new AbortController()
 
     async function fetchUserData() {
+      // In demo mode, use demo user data
+      if (isDemoMode()) {
+        console.log("[v0] Demo mode active - using demo user")
+        setUserEmail(DEMO_USER.email)
+        setUserName(DEMO_USER.full_name)
+        setUserRole(DEMO_USER.role)
+        setIsLoading(false)
+        return
+      }
+
       try {
         const response = await fetch("/api/profile", {
           signal: abortController.signal,
@@ -60,11 +73,13 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Show children immediately for pages that should hide sidebar to avoid hydration issues
   if (shouldHideSidebar) {
     return <>{children}</>
   }
 
-  if (isLoading) {
+  // Prevent hydration mismatch by showing consistent content during SSR
+  if (!isMounted || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div>Carregando...</div>

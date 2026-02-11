@@ -5,6 +5,22 @@ import { cookies } from "next/headers"
 
 export async function GET() {
   try {
+    // Check for demo mode
+    const hasSupabaseConfig = Boolean(
+      process.env.NEXT_PUBLIC_SUPABASE_URL && 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
+
+    if (!hasSupabaseConfig) {
+      console.log("[v0] Demo mode - returning demo user data")
+      return NextResponse.json({
+        email: "demo@empresa.com",
+        role: "user",
+        full_name: "Usuário Demo",
+        is_active: true,
+      })
+    }
+
     const cookieStore = await cookies()
 
     const supabase = createServerClient(

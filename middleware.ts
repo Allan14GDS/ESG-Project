@@ -5,7 +5,10 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  // Demo mode: Skip auth checks if credentials are missing
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.log("[v0] Demo mode - bypassing auth middleware")
+    // Allow access to dashboard/admin in demo mode
     return NextResponse.next()
   }
 

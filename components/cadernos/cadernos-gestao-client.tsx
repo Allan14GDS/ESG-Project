@@ -541,10 +541,10 @@ export function CadernosGestaoClient({
                                 <Table>
                                   <TableHeader>
                                     <TableRow className="bg-muted/10">
-                                      <TableHead>Caderno</TableHead>
-                                      <TableHead>Progresso</TableHead>
-                                      <TableHead>Função</TableHead>
-                                      <TableHead>Atribuído em</TableHead>
+                                      <TableHead className="min-w-[240px]">Caderno</TableHead>
+                                      <TableHead className="w-[180px]">Progresso</TableHead>
+                                      <TableHead className="w-[140px]">Função</TableHead>
+                                      <TableHead className="w-[140px]">Atribuído em</TableHead>
                                       <TableHead className="w-[80px]">Ações</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -563,14 +563,14 @@ export function CadernosGestaoClient({
                                                 return <span className="text-xs text-muted-foreground/60">-</span>
                                               }
                                               return (
-                                                <div className="flex flex-col gap-1">
+                                                <div className="flex flex-col gap-1.5">
                                                   <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-semibold text-foreground">
+                                                    <span className="text-sm font-semibold text-foreground tabular-nums">
                                                       {progress.answeredCount}/{progress.questionsCount}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">questões</span>
                                                   </div>
-                                                  {getStatusBadge(progress.status)}
+                                                  <div>{getStatusBadge(progress.status)}</div>
                                                 </div>
                                               )
                                             })()}
@@ -708,12 +708,12 @@ export function CadernosGestaoClient({
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-muted/20">
-                              <TableHead>Usuário</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Empresa</TableHead>
-                              <TableHead>Progresso</TableHead>
-                              <TableHead>Função</TableHead>
-                              <TableHead>Atribuído em</TableHead>
+                              <TableHead className="w-[160px]">Usuário</TableHead>
+                              <TableHead className="min-w-[200px]">Email</TableHead>
+                              <TableHead className="w-[240px]">Empresa</TableHead>
+                              <TableHead className="w-[180px]">Progresso</TableHead>
+                              <TableHead className="w-[140px]">Função</TableHead>
+                              <TableHead className="w-[140px]">Atribuído em</TableHead>
                               <TableHead className="w-[80px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -732,14 +732,14 @@ export function CadernosGestaoClient({
                                 </TableCell>
                                 <TableCell>
                                   {progress ? (
-                                    <div className="flex flex-col gap-1">
+                                    <div className="flex flex-col gap-1.5">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-foreground">
+                                        <span className="text-sm font-semibold text-foreground tabular-nums">
                                           {progress.answeredCount}/{progress.questionsCount}
                                         </span>
                                         <span className="text-xs text-muted-foreground">questões</span>
                                       </div>
-                                      {getStatusBadge(progress.status)}
+                                      <div>{getStatusBadge(progress.status)}</div>
                                     </div>
                                   ) : (
                                     <span className="text-xs text-muted-foreground/60">-</span>

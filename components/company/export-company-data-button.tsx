@@ -38,6 +38,7 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
   const [filterType, setFilterType] = useState<"cadernos" | "users">("cadernos")
   const [selectedCadernos, setSelectedCadernos] = useState<string[]>([])
   const [selectedUser, setSelectedUser] = useState<string>("")
+  const [includeAllHoldingCompanies, setIncludeAllHoldingCompanies] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [format, setFormat] = useState<"xlsx" | "csv">("xlsx")
@@ -95,6 +96,7 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
           companyId,
           cadernoIds: filterType === "cadernos" ? selectedCadernos : undefined,
           userId: filterType === "users" ? selectedUser : undefined,
+          includeAllHoldingCompanies: filterType === "users" ? includeAllHoldingCompanies : false,
           format,
         }),
       })
@@ -233,9 +235,23 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
                 )}
 
                 {selectedUser && (
-                  <p className="text-sm text-muted-foreground">
-                    Exportará todos os cadernos respondidos por {users.find((u) => u.id === selectedUser)?.full_name}
-                  </p>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2 rounded-lg border border-border/50 p-3">
+                      <Checkbox
+                        id="includeAllHolding"
+                        checked={includeAllHoldingCompanies}
+                        onCheckedChange={(checked) => setIncludeAllHoldingCompanies(checked as boolean)}
+                      />
+                      <Label htmlFor="includeAllHolding" className="cursor-pointer text-sm font-normal flex-1">
+                        Incluir respostas de todas as empresas da holding
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {includeAllHoldingCompanies
+                        ? `Exportará todos os cadernos respondidos por ${users.find((u) => u.id === selectedUser)?.full_name} em todas as empresas da holding`
+                        : `Exportará apenas os cadernos de ${companyName} respondidos por ${users.find((u) => u.id === selectedUser)?.full_name}`}
+                    </p>
+                  </div>
                 )}
               </TabsContent>
             </Tabs>

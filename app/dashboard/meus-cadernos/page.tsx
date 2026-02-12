@@ -347,17 +347,11 @@ export default async function MeusCadernosPage() {
       const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
         const questionCount = questionCountMap.get(holdingCaderno.id) || 0
         
-        // Filter answers for this company specifically
-        const answeredForCaderno = answers.filter((a: any) => 
-          a.template_id === holdingCaderno.id && a.company_id === company.id
-        )
+        // Look up pre-aggregated counts from RPC for this template + company
+        const countKey = `${holdingCaderno.id}_${company.id}`
+        const answeredCount = answerCountsMap.get(countKey) || 0
+        const needsCorrectionCount = needsCorrectionMap.get(countKey) || 0
         
-        const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
-        const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
-          a.status === "rejeitado" || a.status === "pendente_revisao"
-        ).length
-        
-        const answeredCount = uniqueAnsweredQuestions.size
         let status: "pending" | "in_progress" | "completed" = "pending"
         if (answeredCount === 0) {
           status = "pending"

@@ -57,49 +57,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch all data needed for export
-    const { data: questions } = await adminClient
+    const { data: questions, error: questionsError } = await adminClient
       .from("book_question_junction")
-      .select(`
-        question_template_id,
-        book_template_id,
-        sort_order,
-        question:book_questions!book_question_junction_question_template_id_fkey (
-          id,
-          label,
-          type,
-          unique_identifier,
-          metadata
-        ),
-        template:book_templates!book_question_junction_book_template_id_fkey (
-          id,
-          name,
-          description
-        )
-      `)
+      .select("question_template_id, book_template_id, sort_order")
       .in("book_template_id", finalCadernoIds)
       .order("book_template_id")
       .order("sort_order")
 
-    if (!questions) {
-      return NextResponse.json({ error: "Questions not found" }, { status: 404 })
+    if (questionsError) {
+      console.error("Error fetching questions:", questionsError)
+      return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 })
     }
+
+    if (!questions || questions.length === 0) {
+      return NextResponse.json({ error: "No questions found for selected cadernos" }, { status: 404 })
+    }
+
+    // Fetch question details
+    const questionIds = [...new Set(questions.map((q: any) => q.question_template_id))]
+    const { data: questionDetails } = await adminClient
+      .from("book_questions")
+      .select("id, label, type, unique_identifier, metadata")
+      .in("id", questionIds)
+
+    // Fetch template details
+    const { data: templateDetails } = await adminClient
+      .from("book_templates")
+      .select("id, name, description")
+      .in("id", finalCadernoIds)
 
     // Fetch answers for this company
     let answersQuery = adminClient
       .from("book_answers")
-      .select(`
-        question_id,
-        template_id,
-        value,
-        status,
-        evidence_url,
-        value_jsonb,
-        created_at,
-        user:profiles!book_answers_user_id_fkey (
-          full_name,
-          email
-        )
-      `)
+      .select("question_id, template_id, value, status, evidence_url, value_jsonb, created_at, user_id")
       .eq("company_id", companyId)
       .in("template_id", finalCadernoIds)
 
@@ -108,17 +98,35 @@ export async function POST(request: NextRequest) {
       answersQuery = answersQuery.eq("user_id", userId)
     }
 
-    const { data: answers } = await answersQuery
+    const { data: answers, error: answersError } = await answersQuery
+
+    if (answersError) {
+      console.error("Error fetching answers:", answersError)
+      return NextResponse.json({ error: "Failed to fetch answers" }, { status: 500 })
+    }
+
+    // Fetch user profiles for answers
+    const userIds = [...new Set(answers?.map((a: any) => a.user_id).filter(Boolean) || [])]
+    let userProfiles: any[] = []
+    if (userIds.length > 0) {
+      const { data: profiles } = await adminClient
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds)
+      userProfiles = profiles || []
+    }
 
     // Build export data
     const exportData: any[] = []
 
     for (const junction of questions) {
-      const question = junction.question
-      const template = junction.template
+      const question = questionDetails?.find((q: any) => q.id === junction.question_template_id)
+      const template = templateDetails?.find((t: any) => t.id === junction.book_template_id)
       const answer = answers?.find(
         (a: any) => a.question_id === junction.question_template_id && a.template_id === junction.book_template_id
       )
+
+      const userProfile = answer?.user_id ? userProfiles.find((u: any) => u.id === answer.user_id) : null
 
       const metadata = question?.metadata as any
       const framework = metadata?.framework || metadata?.Framework || ""
@@ -142,8 +150,8 @@ export async function POST(request: NextRequest) {
         "Não Aplicável": notApplicable ? "Sim" : "Não",
         "Observação de Revisão": reviewObservation,
         "URL da Evidência": answer?.evidence_url || "",
-        "Usuário que Respondeu": answer?.user?.full_name || "",
-        "Email do Usuário": answer?.user?.email || "",
+        "Usuário que Respondeu": userProfile?.full_name || "",
+        "Email do Usuário": userProfile?.email || "",
         "Data da Resposta": answer?.created_at ? new Date(answer.created_at).toLocaleString("pt-BR") : "",
       })
     }

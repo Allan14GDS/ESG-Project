@@ -61,10 +61,9 @@ export default async function MeusCadernosPage() {
                    profile.role === "admin_main" ||
                    profile.role === "admin"
   
-  // Fetch answer counts using database-level aggregation (RPC)
-  // This avoids Supabase's default 1000-row limit that silently truncates results
-  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> answered_count
-  let needsCorrectionMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> needs_correction_count
+  // Fetch answers based on user type
+  // IMPORTANT: .limit(100000) overrides Supabase's default 1000-row limit
+  let answers: any[] = []
   try {
     if (isGestor) {
       // Gestores see ALL answers for companies/holdings they manage
@@ -72,80 +71,35 @@ export default async function MeusCadernosPage() {
       const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
       
       if (companyIds.length > 0 || orgIds.length > 0) {
-        const { data: counts, error: countsError } = await adminClient
-          .rpc("get_gestor_answer_counts", {
-            p_company_ids: companyIds,
-            p_org_ids: orgIds
-          })
+        const { data: allAnswers, error: answersError } = await adminClient
+          .from("book_answers")
+          .select("template_id, question_id, status, company_id, holding_id, user_id")
+          .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+          .limit(100000)
         
-        if (countsError) {
-          console.error("[v0] Error fetching gestor answer counts:", countsError)
+        if (answersError) {
+          console.error("Error fetching answers:", answersError)
         }
         
-        console.log("[v0] Gestor RPC result:", { countsError, countsLength: counts?.length, companyIds, orgIds })
-        if (counts) {
-          for (const row of counts) {
-            const key = `${row.template_id}_${row.company_id}`
-            answerCountsMap.set(key, row.answered_count)
-          }
-          console.log("[v0] answerCountsMap after gestor RPC:", Array.from(answerCountsMap.entries()).slice(0, 10))
-        }
-
-        // Also fetch needs-correction counts for gestor
-        const { data: correctionCounts, error: correctionError } = await adminClient
-          .rpc("get_gestor_correction_counts", {
-            p_company_ids: companyIds,
-            p_org_ids: orgIds
-          })
-        
-        if (correctionError) {
-          console.error("[v0] Error fetching correction counts:", correctionError)
-        }
-
-        if (correctionCounts) {
-          for (const row of correctionCounts) {
-            const key = `${row.template_id}_${row.company_id}`
-            needsCorrectionMap.set(key, row.needs_correction_count)
-          }
-        }
+        answers = allAnswers || []
       }
     } else {
-      // Regular users only see their own answers - use RPC to aggregate in DB
-      const { data: counts, error: countsError } = await adminClient
-        .rpc("get_user_answer_counts", {
-          p_user_id: profile.id
-        })
+      // Regular users only see their own answers
+      const { data: userAnswers, error: answersError } = await adminClient
+        .from("book_answers")
+        .select("template_id, question_id, status, company_id, holding_id")
+        .eq("user_id", profile.id)
+        .limit(100000)
       
-      if (countsError) {
-        console.error("[v0] Error fetching user answer counts:", countsError)
+      if (answersError) {
+        console.error("Error fetching user answers:", answersError)
       }
       
-      if (counts) {
-        for (const row of counts) {
-          const key = `${row.template_id}_${row.company_id}`
-          answerCountsMap.set(key, row.answered_count)
-        }
-      }
-
-      // Also fetch needs-correction counts for regular user
-      const { data: correctionCounts, error: correctionError } = await adminClient
-        .rpc("get_user_correction_counts", {
-          p_user_id: profile.id
-        })
-      
-      if (correctionError) {
-        console.error("[v0] Error fetching correction counts:", correctionError)
-      }
-
-      if (correctionCounts) {
-        for (const row of correctionCounts) {
-          const key = `${row.template_id}_${row.company_id}`
-          needsCorrectionMap.set(key, row.needs_correction_count)
-        }
-      }
+      answers = userAnswers || []
     }
   } catch (error) {
-    console.error("[v0] Exception fetching answer counts:", error)
+    console.error("Exception fetching answers:", error)
+    answers = []
   }
 
   // Get unique caderno IDs
@@ -304,17 +258,25 @@ export default async function MeusCadernosPage() {
 
 
   // Update cadernos with question counts and answers (per company)
-  // Uses pre-aggregated counts from database RPCs to avoid Supabase 1000-row limit
   for (const [uniqueKey, caderno] of cadernosMap) {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
-    // Look up pre-aggregated answer count for this specific template + company
-    const countKey = `${caderno.id}_${caderno.company_id}`
-    const answeredCount = caderno.company_id ? (answerCountsMap.get(countKey) || 0) : 0
-    const needsCorrectionCount = caderno.company_id ? (needsCorrectionMap.get(countKey) || 0) : 0
+    // Filter answers for this specific template AND company
+    const answeredForCaderno = answers.filter((a: any) => {
+      if (a.template_id !== caderno.id) return false
+      if (caderno.company_id) {
+        return a.company_id === caderno.company_id
+      }
+      return false
+    })
+
+    const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
+    const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
+      a.status === "rejeitado" || a.status === "pendente_revisao"
+    ).length
 
     caderno.questionsCount = questionCount
-    caderno.answeredCount = answeredCount
+    caderno.answeredCount = uniqueAnsweredQuestions.size
     caderno.needsCorrection = needsCorrectionCount
 
     // Status based on answered count vs total questions
@@ -349,11 +311,16 @@ export default async function MeusCadernosPage() {
       const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
         const questionCount = questionCountMap.get(holdingCaderno.id) || 0
         
-        // Look up pre-aggregated counts from RPC for this template + company
-        const countKey = `${holdingCaderno.id}_${company.id}`
-        const answeredCount = answerCountsMap.get(countKey) || 0
-        console.log("[v0] Holding expansion:", { countKey, answeredCount, mapSize: answerCountsMap.size, mapKeys: Array.from(answerCountsMap.keys()).slice(0, 5) })
-        const needsCorrectionCount = needsCorrectionMap.get(countKey) || 0
+        // Filter answers for this company specifically
+        const answeredForCaderno = answers.filter((a: any) => 
+          a.template_id === holdingCaderno.id && a.company_id === company.id
+        )
+        
+        const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
+        const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
+          a.status === "rejeitado" || a.status === "pendente_revisao"
+        ).length
+        const answeredCount = uniqueAnsweredQuestions.size
         
         let status: "pending" | "in_progress" | "completed" = "pending"
         if (answeredCount === 0) {
@@ -433,20 +400,7 @@ export default async function MeusCadernosPage() {
   // Combine holdings and standalone orgs
   const allHoldingsAndOrgs = [...holdingsWithCompanies, ...standaloneOrgs]
 
-  // Debug: trace TROPICALIA GRI 207 caderno through the hierarchy
-  for (const holding of allHoldingsAndOrgs) {
-    for (const company of (holding as any).companies || []) {
-      for (const cad of company.cadernos || []) {
-        if (cad.id === 'aec40301-061a-45da-88a1-554ef2479dc1' && company.id === 'c3048a47-0206-4604-8f15-94cf123d607c') {
-          console.log("[v0] TROPICALIA GRI 207 in hierarchy:", { 
-            cadernoId: cad.id, companyId: company.id, companyName: company.name,
-            answeredCount: cad.answeredCount, questionsCount: cad.questionsCount, status: cad.status,
-            cadernoCompanyId: cad.company_id
-          })
-        }
-      }
-    }
-  }
+
 
   const totalCadernos = cadernos.length
   const completedCadernos = cadernos.filter((c) => c.status === "completed").length

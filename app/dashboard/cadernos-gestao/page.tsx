@@ -317,42 +317,34 @@ export default async function CadernosGestaoPage() {
     }
   }
 
-  // --- Fetch aggregated answer counts using database RPCs ---
-  // This avoids Supabase's default 1000-row limit that silently truncates results
-  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> answered_count
+  // --- Fetch all book_answers for the allowed organizations/companies ---
+  // IMPORTANT: .limit(100000) overrides Supabase's default 1000-row limit
+  let allAnswers: any[] = []
   try {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
       
       if (companyIds.length > 0) {
-        const { data: counts, error: countsError } = await adminClient
-          .rpc("get_gestor_answer_counts", {
-            p_company_ids: companyIds,
-            p_org_ids: allowedOrgIds
-          })
-        
-        if (countsError) {
-          console.error("[v0] Error fetching gestor answer counts:", countsError)
+        const { data: answersData, error: answersError } = await adminClient
+          .from("book_answers")
+          .select("template_id, question_id, status, company_id, user_id")
+          .in("company_id", companyIds)
+          .limit(100000)
+
+        if (answersError) {
+          console.error("Error fetching book_answers:", answersError)
         }
-        
-        if (counts) {
-          for (const row of counts) {
-            const key = `${row.template_id}_${row.company_id}`
-            answerCountsMap.set(key, row.answered_count)
-          }
-        }
+        allAnswers = answersData || []
       }
     }
   } catch (error) {
-    console.error("[v0] Exception fetching answer counts:", error)
+    console.error("Exception fetching book_answers:", error)
   }
 
   // --- Build progress map keyed by "templateId_companyId" ---
-  // Each entry has: { questionsCount, answeredCount, status }
   const progressMap: Record<string, { questionsCount: number; answeredCount: number; status: "pending" | "in_progress" | "completed" }> = {}
 
   if (assignments && assignments.length > 0) {
-    // Get unique (caderno_id, company_id) pairs from assignments
     const uniquePairs = new Set<string>()
     for (const assignment of assignments) {
       const companyId = (assignment as any).company_id
@@ -365,8 +357,14 @@ export default async function CadernosGestaoPage() {
       const [templateId, companyId] = pairKey.split("_")
       const questionsCount = questionCountMap[templateId] || 0
 
-      // Look up pre-aggregated count from database RPC
-      const answeredCount = answerCountsMap.get(pairKey) || 0
+      // Filter answers for this specific template AND company
+      const answersForPair = allAnswers.filter(
+        (a: any) => a.template_id === templateId && a.company_id === companyId
+      )
+
+      // Count unique questions answered
+      const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
+      const answeredCount = uniqueAnsweredQuestions.size
 
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {

@@ -433,6 +433,21 @@ export default async function MeusCadernosPage() {
   // Combine holdings and standalone orgs
   const allHoldingsAndOrgs = [...holdingsWithCompanies, ...standaloneOrgs]
 
+  // Debug: trace TROPICALIA GRI 207 caderno through the hierarchy
+  for (const holding of allHoldingsAndOrgs) {
+    for (const company of (holding as any).companies || []) {
+      for (const cad of company.cadernos || []) {
+        if (cad.id === 'aec40301-061a-45da-88a1-554ef2479dc1' && company.id === 'c3048a47-0206-4604-8f15-94cf123d607c') {
+          console.log("[v0] TROPICALIA GRI 207 in hierarchy:", { 
+            cadernoId: cad.id, companyId: company.id, companyName: company.name,
+            answeredCount: cad.answeredCount, questionsCount: cad.questionsCount, status: cad.status,
+            cadernoCompanyId: cad.company_id
+          })
+        }
+      }
+    }
+  }
+
   const totalCadernos = cadernos.length
   const completedCadernos = cadernos.filter((c) => c.status === "completed").length
   const inProgressCadernos = cadernos.filter((c) => c.status === "in_progress").length

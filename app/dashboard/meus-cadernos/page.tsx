@@ -264,6 +264,20 @@ export default async function MeusCadernosPage() {
     caderno.answeredCount = uniqueAnsweredQuestions.size
     caderno.needsCorrection = needsCorrectionCount
 
+    // Debug GRI 204
+    if (caderno.name && caderno.name.includes('GRI 204')) {
+      console.log('[v0] GRI 204 count:', {
+        name: caderno.name,
+        templateId: caderno.id,
+        companyId: caderno.company_id,
+        totalAnswersFetched: answers.length,
+        answersForThisCaderno: answeredForCaderno.length,
+        uniqueQuestions: uniqueAnsweredQuestions.size,
+        questionCount,
+        allAnswersForTemplate: answers.filter((a: any) => a.template_id === caderno.id).length
+      })
+    }
+
     // Status based on answered count vs total questions
     if (caderno.answeredCount === 0) {
       caderno.status = "pending"

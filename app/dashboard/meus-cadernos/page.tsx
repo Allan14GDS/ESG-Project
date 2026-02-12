@@ -61,8 +61,10 @@ export default async function MeusCadernosPage() {
                    profile.role === "admin_main" ||
                    profile.role === "admin"
   
-  // Fetch answers based on user type
-  let answers: any[] = []
+  // Fetch answer counts using database-level aggregation (RPC)
+  // This avoids Supabase's default 1000-row limit that silently truncates results
+  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> answered_count
+  let needsCorrectionMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> needs_correction_count
   try {
     if (isGestor) {
       // Gestores see ALL answers for companies/holdings they manage
@@ -70,35 +72,78 @@ export default async function MeusCadernosPage() {
       const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
       
       if (companyIds.length > 0 || orgIds.length > 0) {
-        const { data: allAnswers, error: answersError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, holding_id, user_id")
-          .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+        const { data: counts, error: countsError } = await adminClient
+          .rpc("get_gestor_answer_counts", {
+            p_company_ids: companyIds,
+            p_org_ids: orgIds
+          })
         
-        if (answersError) {
-          console.error("[v0] Error fetching answers:", answersError)
+        if (countsError) {
+          console.error("[v0] Error fetching gestor answer counts:", countsError)
         }
         
-        answers = allAnswers || []
+        if (counts) {
+          for (const row of counts) {
+            const key = `${row.template_id}_${row.company_id}`
+            answerCountsMap.set(key, row.answered_count)
+          }
+        }
+
+        // Also fetch needs-correction counts for gestor
+        const { data: correctionCounts, error: correctionError } = await adminClient
+          .rpc("get_gestor_correction_counts", {
+            p_company_ids: companyIds,
+            p_org_ids: orgIds
+          })
+        
+        if (correctionError) {
+          console.error("[v0] Error fetching correction counts:", correctionError)
+        }
+
+        if (correctionCounts) {
+          for (const row of correctionCounts) {
+            const key = `${row.template_id}_${row.company_id}`
+            needsCorrectionMap.set(key, row.needs_correction_count)
+          }
+        }
       }
     } else {
-      // Regular users only see their own answers
-      const { data: userAnswers, error: answersError } = await adminClient
-        .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id")
-        .eq("user_id", profile.id)
+      // Regular users only see their own answers - use RPC to aggregate in DB
+      const { data: counts, error: countsError } = await adminClient
+        .rpc("get_user_answer_counts", {
+          p_user_id: profile.id
+        })
       
-      if (answersError) {
-        console.error("[v0] Error fetching user answers:", answersError)
+      if (countsError) {
+        console.error("[v0] Error fetching user answer counts:", countsError)
       }
       
-      answers = userAnswers || []
-    }
-    
+      if (counts) {
+        for (const row of counts) {
+          const key = `${row.template_id}_${row.company_id}`
+          answerCountsMap.set(key, row.answered_count)
+        }
+      }
 
+      // Also fetch needs-correction counts for regular user
+      const { data: correctionCounts, error: correctionError } = await adminClient
+        .rpc("get_user_correction_counts", {
+          p_user_id: profile.id
+        })
+      
+      if (correctionError) {
+        console.error("[v0] Error fetching correction counts:", correctionError)
+      }
+
+      if (correctionCounts) {
+        for (const row of correctionCounts) {
+          const key = `${row.template_id}_${row.company_id}`
+          needsCorrectionMap.set(key, row.needs_correction_count)
+        }
+      }
+    }
   } catch (error) {
-    console.error("[v0] Exception fetching answers:", error)
-    answers = []
+    console.error("[v0] Exception fetching answer counts:", error)
   }
 
   // Get unique caderno IDs
@@ -257,37 +302,17 @@ export default async function MeusCadernosPage() {
 
 
   // Update cadernos with question counts and answers (per company)
+  // Uses pre-aggregated counts from database RPCs to avoid Supabase 1000-row limit
   for (const [uniqueKey, caderno] of cadernosMap) {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
-    // Filter answers for this specific template AND company
-    // IMPORTANT: Each company has its own set of answers for the same template
-    // We must filter by company_id to count answers specific to this company
-    const answeredForCaderno = answers.filter((a: any) => {
-      if (a.template_id !== caderno.id) return false
-      
-      // If caderno has company_id (assigned to specific company)
-      if (caderno.company_id) {
-        // STRICT MATCH: Only count answers that have the exact same company_id
-        // This ensures we don't mix answers from different companies
-        return a.company_id === caderno.company_id
-      }
-      
-      // If no company_id (direct to holding), should not count any answers here
-      // Holding-level cadernos get their counts when instantiated per-company
-      return false
-    })
-
-    // Count unique questions answered for this specific company
-    const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a) => a.question_id))
-
-    // Count questions that need correction (rejected or pending revision)
-    const needsCorrectionCount = answeredForCaderno.filter((a) =>
-      a.status === "rejeitado" || a.status === "pendente_revisao"
-    ).length
+    // Look up pre-aggregated answer count for this specific template + company
+    const countKey = `${caderno.id}_${caderno.company_id}`
+    const answeredCount = caderno.company_id ? (answerCountsMap.get(countKey) || 0) : 0
+    const needsCorrectionCount = caderno.company_id ? (needsCorrectionMap.get(countKey) || 0) : 0
 
     caderno.questionsCount = questionCount
-    caderno.answeredCount = uniqueAnsweredQuestions.size
+    caderno.answeredCount = answeredCount
     caderno.needsCorrection = needsCorrectionCount
 
     // Status based on answered count vs total questions

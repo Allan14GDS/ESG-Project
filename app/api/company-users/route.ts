@@ -15,14 +15,7 @@ export async function GET(request: NextRequest) {
     // Get all users assigned to this company via book_assignments
     const { data: assignments, error: assignmentsError } = await adminClient
       .from("book_assignments")
-      .select(`
-        user_id,
-        profiles!book_assignments_user_id_fkey (
-          id,
-          full_name,
-          email
-        )
-      `)
+      .select("user_id")
       .eq("company_id", companyId)
 
     if (assignmentsError) {
@@ -30,20 +23,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 })
     }
 
-    // Extract unique users
-    const uniqueUsersMap = new Map()
-    assignments?.forEach((assignment: any) => {
-      const profile = assignment.profiles
-      if (profile && !uniqueUsersMap.has(profile.id)) {
-        uniqueUsersMap.set(profile.id, {
-          id: profile.id,
-          full_name: profile.full_name,
-          email: profile.email,
-        })
-      }
-    })
+    if (!assignments || assignments.length === 0) {
+      return NextResponse.json({ users: [] })
+    }
 
-    const users = Array.from(uniqueUsersMap.values())
+    // Get unique user IDs
+    const userIds = [...new Set(assignments.map((a: any) => a.user_id).filter(Boolean))]
+
+    if (userIds.length === 0) {
+      return NextResponse.json({ users: [] })
+    }
+
+    // Fetch user profiles
+    const { data: profiles, error: profilesError } = await adminClient
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", userIds)
+
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError)
+      return NextResponse.json({ error: "Failed to fetch user profiles" }, { status: 500 })
+    }
+
+    const users = profiles || []
 
     return NextResponse.json({ users })
   } catch (error) {

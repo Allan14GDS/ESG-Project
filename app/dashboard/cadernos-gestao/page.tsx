@@ -324,27 +324,45 @@ export default async function CadernosGestaoPage() {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
       
-      if (companyIds.length > 0 || allowedOrgIds.length > 0) {
-        let query = adminClient
+      // Fetch answers by company_id
+      if (companyIds.length > 0) {
+        const { data: companyAnswers, error: companyError } = await adminClient
           .from("book_answers")
           .select("template_id, question_id, status, company_id, holding_id, user_id")
-        
-        // Build OR filter to include both company_id and holding_id matches
-        if (companyIds.length > 0 && allowedOrgIds.length > 0) {
-          query = query.or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${allowedOrgIds.join(",")})`)
-        } else if (companyIds.length > 0) {
-          query = query.in("company_id", companyIds)
-        } else if (allowedOrgIds.length > 0) {
-          query = query.in("holding_id", allowedOrgIds)
-        }
-        
-        const { data: answersData, error: answersError } = await query.limit(100000)
+          .in("company_id", companyIds)
+          .limit(100000)
 
-        if (answersError) {
-          console.error("Error fetching book_answers:", answersError)
+        if (companyError) {
+          console.error("Error fetching company answers:", companyError)
+        } else {
+          allAnswers = allAnswers.concat(companyAnswers || [])
         }
-        allAnswers = answersData || []
       }
+      
+      // Fetch answers by holding_id
+      if (allowedOrgIds.length > 0) {
+        const { data: holdingAnswers, error: holdingError } = await adminClient
+          .from("book_answers")
+          .select("template_id, question_id, status, company_id, holding_id, user_id")
+          .in("holding_id", allowedOrgIds)
+          .limit(100000)
+
+        if (holdingError) {
+          console.error("Error fetching holding answers:", holdingError)
+        } else {
+          allAnswers = allAnswers.concat(holdingAnswers || [])
+        }
+      }
+      
+      // Remove duplicates based on unique combination
+      const uniqueAnswers = new Map()
+      for (const answer of allAnswers) {
+        const key = `${answer.template_id}_${answer.question_id}_${answer.company_id}`
+        if (!uniqueAnswers.has(key)) {
+          uniqueAnswers.set(key, answer)
+        }
+      }
+      allAnswers = Array.from(uniqueAnswers.values())
     }
   } catch (error) {
     console.error("Exception fetching book_answers:", error)

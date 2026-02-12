@@ -70,47 +70,21 @@ export default async function MeusCadernosPage() {
   let answers: any[] = []
   try {
     const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
-    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
     
-    // Fetch answers by company_id
+    // Fetch answers ONLY by company_id (since all answers have company_id filled)
     if (companyIds.length > 0) {
-      const { data: companyAnswers, error: companyError } = await adminClient
+      const { data: answersData, error: answersError } = await adminClient
         .from("book_answers")
         .select("template_id, question_id, status, company_id, holding_id, user_id")
         .in("company_id", companyIds)
         .limit(100000)
       
-      if (companyError) {
-        console.error("Error fetching company answers:", companyError)
+      if (answersError) {
+        console.error("Error fetching answers:", answersError)
       } else {
-        answers = answers.concat(companyAnswers || [])
+        answers = answersData || []
       }
     }
-    
-    // Fetch answers by holding_id
-    if (orgIds.length > 0) {
-      const { data: holdingAnswers, error: holdingError } = await adminClient
-        .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id, user_id")
-        .in("holding_id", orgIds)
-        .limit(100000)
-      
-      if (holdingError) {
-        console.error("Error fetching holding answers:", holdingError)
-      } else {
-        answers = answers.concat(holdingAnswers || [])
-      }
-    }
-    
-    // Remove duplicates based on unique combination of template_id, question_id, company_id
-    const uniqueAnswers = new Map()
-    for (const answer of answers) {
-      const key = `${answer.template_id}_${answer.question_id}_${answer.company_id}`
-      if (!uniqueAnswers.has(key)) {
-        uniqueAnswers.set(key, answer)
-      }
-    }
-    answers = Array.from(uniqueAnswers.values())
   } catch (error) {
     console.error("Exception fetching answers:", error)
     answers = []

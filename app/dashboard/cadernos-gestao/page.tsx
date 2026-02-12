@@ -327,57 +327,20 @@ export default async function CadernosGestaoPage() {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
       
-      // Fetch answers by company_id
+      // Fetch answers ONLY by company_id (since all answers have company_id filled)
       if (companyIds.length > 0) {
-        const { data: companyAnswers, error: companyError } = await adminClient
+        const { data: answersData, error: answersError } = await adminClient
           .from("book_answers")
           .select("template_id, question_id, status, company_id, holding_id, user_id")
           .in("company_id", companyIds)
           .limit(100000)
 
-        if (companyError) {
-          console.error("Error fetching company answers:", companyError)
+        if (answersError) {
+          console.error("Error fetching book_answers:", answersError)
         } else {
-          allAnswers = allAnswers.concat(companyAnswers || [])
+          allAnswers = answersData || []
         }
       }
-      
-      // Fetch answers by holding_id
-      if (allowedOrgIds.length > 0) {
-        const { data: holdingAnswers, error: holdingError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, holding_id, user_id")
-          .in("holding_id", allowedOrgIds)
-          .limit(100000)
-
-        if (holdingError) {
-          console.error("Error fetching holding answers:", holdingError)
-        } else {
-          allAnswers = allAnswers.concat(holdingAnswers || [])
-        }
-      }
-      
-      // Remove duplicates based on unique combination
-      const uniqueAnswers = new Map()
-      for (const answer of allAnswers) {
-        const key = `${answer.template_id}_${answer.question_id}_${answer.company_id}`
-        if (!uniqueAnswers.has(key)) {
-          uniqueAnswers.set(key, answer)
-        }
-      }
-      allAnswers = Array.from(uniqueAnswers.values())
-      
-      // Debug GRI 204
-      const gri204Answers = allAnswers.filter(a => a.template_id === '6bdbbebc-910f-4a07-a5e1-7fbca3e98792')
-      console.log('[v0] cadernos-gestao GRI 204 answers fetched:', {
-        total: allAnswers.length,
-        gri204Total: gri204Answers.length,
-        gri204ByCompany: gri204Answers.reduce((acc: any, a: any) => {
-          const companyName = companies?.find((c: any) => c.id === a.company_id)?.name || a.company_id
-          acc[companyName] = (acc[companyName] || 0) + 1
-          return acc
-        }, {})
-      })
     }
   } catch (error) {
     console.error("Exception fetching book_answers:", error)

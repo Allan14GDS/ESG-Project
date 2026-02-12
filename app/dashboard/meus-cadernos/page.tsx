@@ -70,11 +70,20 @@ export default async function MeusCadernosPage() {
     const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
     
     if (companyIds.length > 0 || orgIds.length > 0) {
-      const { data: allAnswers, error: answersError } = await adminClient
+      let query = adminClient
         .from("book_answers")
         .select("template_id, question_id, status, company_id, holding_id, user_id")
-        .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
-        .limit(100000)
+      
+      // Build OR filter correctly
+      if (companyIds.length > 0 && orgIds.length > 0) {
+        query = query.or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
+      } else if (companyIds.length > 0) {
+        query = query.in("company_id", companyIds)
+      } else if (orgIds.length > 0) {
+        query = query.in("holding_id", orgIds)
+      }
+      
+      const { data: allAnswers, error: answersError } = await query.limit(100000)
       
       if (answersError) {
         console.error("Error fetching answers:", answersError)
@@ -263,20 +272,6 @@ export default async function MeusCadernosPage() {
     caderno.questionsCount = questionCount
     caderno.answeredCount = uniqueAnsweredQuestions.size
     caderno.needsCorrection = needsCorrectionCount
-
-    // Debug GRI 204
-    if (caderno.name && caderno.name.includes('GRI 204')) {
-      console.log('[v0] GRI 204 count:', {
-        name: caderno.name,
-        templateId: caderno.id,
-        companyId: caderno.company_id,
-        totalAnswersFetched: answers.length,
-        answersForThisCaderno: answeredForCaderno.length,
-        uniqueQuestions: uniqueAnsweredQuestions.size,
-        questionCount,
-        allAnswersForTemplate: answers.filter((a: any) => a.template_id === caderno.id).length
-      })
-    }
 
     // Status based on answered count vs total questions
     if (caderno.answeredCount === 0) {

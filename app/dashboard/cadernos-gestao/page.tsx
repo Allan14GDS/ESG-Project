@@ -324,12 +324,21 @@ export default async function CadernosGestaoPage() {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
       
-      if (companyIds.length > 0) {
-        const { data: answersData, error: answersError } = await adminClient
+      if (companyIds.length > 0 || allowedOrgIds.length > 0) {
+        let query = adminClient
           .from("book_answers")
-          .select("template_id, question_id, status, company_id, user_id")
-          .in("company_id", companyIds)
-          .limit(100000)
+          .select("template_id, question_id, status, company_id, holding_id, user_id")
+        
+        // Build OR filter to include both company_id and holding_id matches
+        if (companyIds.length > 0 && allowedOrgIds.length > 0) {
+          query = query.or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${allowedOrgIds.join(",")})`)
+        } else if (companyIds.length > 0) {
+          query = query.in("company_id", companyIds)
+        } else if (allowedOrgIds.length > 0) {
+          query = query.in("holding_id", allowedOrgIds)
+        }
+        
+        const { data: answersData, error: answersError } = await query.limit(100000)
 
         if (answersError) {
           console.error("Error fetching book_answers:", answersError)
@@ -365,21 +374,6 @@ export default async function CadernosGestaoPage() {
       // Count unique questions answered
       const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
       const answeredCount = uniqueAnsweredQuestions.size
-
-      // Debug GRI 204
-      const template = templates?.find((t: any) => t.id === templateId)
-      if (template?.name?.includes('GRI 204')) {
-        console.log('[v0] cadernos-gestao GRI 204:', {
-          templateId,
-          templateName: template.name,
-          companyId,
-          totalAnswersFetched: allAnswers.length,
-          answersForThisTemplateCompany: answersForPair.length,
-          uniqueQuestions: answeredCount,
-          questionsCount,
-          allAnswersForThisTemplate: allAnswers.filter((a: any) => a.template_id === templateId).length
-        })
-      }
 
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {

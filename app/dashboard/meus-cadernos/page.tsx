@@ -82,11 +82,13 @@ export default async function MeusCadernosPage() {
           console.error("[v0] Error fetching gestor answer counts:", countsError)
         }
         
+        console.log("[v0] Gestor RPC result:", { countsError, countsLength: counts?.length, companyIds, orgIds })
         if (counts) {
           for (const row of counts) {
             const key = `${row.template_id}_${row.company_id}`
             answerCountsMap.set(key, row.answered_count)
           }
+          console.log("[v0] answerCountsMap after gestor RPC:", Array.from(answerCountsMap.entries()).slice(0, 10))
         }
 
         // Also fetch needs-correction counts for gestor
@@ -350,6 +352,7 @@ export default async function MeusCadernosPage() {
         // Look up pre-aggregated counts from RPC for this template + company
         const countKey = `${holdingCaderno.id}_${company.id}`
         const answeredCount = answerCountsMap.get(countKey) || 0
+        console.log("[v0] Holding expansion:", { countKey, answeredCount, mapSize: answerCountsMap.size, mapKeys: Array.from(answerCountsMap.keys()).slice(0, 5) })
         const needsCorrectionCount = needsCorrectionMap.get(countKey) || 0
         
         let status: "pending" | "in_progress" | "completed" = "pending"

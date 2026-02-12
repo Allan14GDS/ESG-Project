@@ -396,7 +396,9 @@ export default async function CadernosGestaoPage() {
     }
 
     for (const pairKey of uniquePairs) {
-      const [templateId, companyId] = pairKey.split("_")
+      const splitIndex = pairKey.indexOf("_")
+      const templateId = pairKey.substring(0, splitIndex)
+      const companyId = pairKey.substring(splitIndex + 1)
       const questionsCount = questionCountMap[templateId] || 0
 
       // Filter answers for this specific template AND company
@@ -407,6 +409,20 @@ export default async function CadernosGestaoPage() {
       // Count unique questions answered
       const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
       const answeredCount = uniqueAnsweredQuestions.size
+      
+      // Debug GRI 204
+      if (templateId === '6bdbbebc-910f-4a07-a5e1-7fbca3e98792') {
+        console.log('[v0] GRI 204 progressMap build:', {
+          pairKey,
+          templateId,
+          companyId,
+          allAnswersTotal: allAnswers.length,
+          answersForPair: answersForPair.length,
+          answeredCount,
+          questionsCount,
+          sampleAnswer: answersForPair[0]
+        })
+      }
 
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {

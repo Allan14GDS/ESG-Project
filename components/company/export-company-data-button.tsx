@@ -43,6 +43,7 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [format, setFormat] = useState<"xlsx" | "csv">("xlsx")
   const [isExporting, setIsExporting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string>("")
 
   // Fetch users when dialog opens
   useEffect(() => {
@@ -85,6 +86,7 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
     if (filterType === "users" && !selectedUser) return
 
     setIsExporting(true)
+    setErrorMessage("")
 
     try {
       const response = await fetch("/api/export-company-data", {
@@ -102,7 +104,8 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
       })
 
       if (!response.ok) {
-        throw new Error("Failed to export data")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to export data")
       }
 
       const blob = await response.blob()
@@ -115,11 +118,15 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
+      // Only close and reset on success
       setIsOpen(false)
       setSelectedCadernos([])
+      setSelectedUser("")
+      setIncludeAllHoldingCompanies(false)
+      setErrorMessage("")
     } catch (error) {
       console.error("Export error:", error)
-      alert("Erro ao exportar dados. Por favor, tente novamente.")
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao exportar dados. Por favor, tente novamente.")
     } finally {
       setIsExporting(false)
     }
@@ -256,6 +263,12 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
               </TabsContent>
             </Tabs>
           </div>
+
+          {errorMessage && (
+            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isExporting}>

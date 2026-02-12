@@ -6,6 +6,9 @@ import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function CadernosGestaoPage() {
   const supabase = await createClient()
   const adminClient = createAdminClient()
@@ -363,6 +366,18 @@ export default async function CadernosGestaoPage() {
         }
       }
       allAnswers = Array.from(uniqueAnswers.values())
+      
+      // Debug GRI 204
+      const gri204Answers = allAnswers.filter(a => a.template_id === '6bdbbebc-910f-4a07-a5e1-7fbca3e98792')
+      console.log('[v0] cadernos-gestao GRI 204 answers fetched:', {
+        total: allAnswers.length,
+        gri204Total: gri204Answers.length,
+        gri204ByCompany: gri204Answers.reduce((acc: any, a: any) => {
+          const companyName = companies?.find((c: any) => c.id === a.company_id)?.name || a.company_id
+          acc[companyName] = (acc[companyName] || 0) + 1
+          return acc
+        }, {})
+      })
     }
   } catch (error) {
     console.error("Exception fetching book_answers:", error)

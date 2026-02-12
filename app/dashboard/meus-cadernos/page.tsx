@@ -10,6 +10,9 @@ import { MeusCadernosClient } from "@/components/cadernos/meus-cadernos-client"
 import { DemoDashboard } from "@/components/demo-dashboard"
 import { DEMO_USER } from "@/lib/demo-mode"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function MeusCadernosPage() {
   // Check for demo mode
   const hasSupabaseConfig = Boolean(

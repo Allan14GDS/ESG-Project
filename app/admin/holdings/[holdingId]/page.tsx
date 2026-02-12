@@ -9,6 +9,7 @@ import Link from "next/link"
 import { DeleteCompanyButton } from "@/components/company/delete-company-button"
 import { requireAdmin } from "@/lib/auth-utils"
 import { CreateCompanyButton } from "@/components/company/create-company-button"
+import { ExportCompanyDataButton } from "@/components/company/export-company-data-button"
 
 export default async function AdminHoldingDetailPage({ params }: { params: { holdingId: string } }) {
   await requireAdmin()
@@ -61,6 +62,12 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
       </div>
     )
   }
+
+  // Fetch all cadernos (book templates) for export functionality
+  const { data: cadernos } = await adminClient
+    .from("book_templates")
+    .select("id, name")
+    .order("name")
 
   return (
     <div className="min-h-screen bg-background">
@@ -182,6 +189,11 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
                           >
                             <Link href={`/company/${company.id}/dashboard`}>Abrir Dashboard</Link>
                           </Button>
+                          <ExportCompanyDataButton
+                            companyId={company.id}
+                            companyName={company.name}
+                            cadernos={cadernos || []}
+                          />
                           <DeleteCompanyButton
                             companyId={company.id}
                             companyName={company.name}

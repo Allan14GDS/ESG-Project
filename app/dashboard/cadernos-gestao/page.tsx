@@ -366,6 +366,21 @@ export default async function CadernosGestaoPage() {
       const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
       const answeredCount = uniqueAnsweredQuestions.size
 
+      // Debug GRI 204
+      const template = templates?.find((t: any) => t.id === templateId)
+      if (template?.name?.includes('GRI 204')) {
+        console.log('[v0] cadernos-gestao GRI 204:', {
+          templateId,
+          templateName: template.name,
+          companyId,
+          totalAnswersFetched: allAnswers.length,
+          answersForThisTemplateCompany: answersForPair.length,
+          uniqueQuestions: answeredCount,
+          questionsCount,
+          allAnswersForThisTemplate: allAnswers.filter((a: any) => a.template_id === templateId).length
+        })
+      }
+
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {
         status = "pending"

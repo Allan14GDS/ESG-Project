@@ -6,6 +6,9 @@ import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function CadernosGestaoPage() {
   const supabase = await createClient()
   const adminClient = createAdminClient()
@@ -317,36 +320,37 @@ export default async function CadernosGestaoPage() {
     }
   }
 
-  // --- Fetch all book_answers for the allowed organizations/companies ---
-  // This gives us answered counts per (template, company, user)
-  let allAnswers: any[] = []
+  // --- Use RPC to get answer counts (bypasses PostgREST 1000-row limit) ---
+  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
     if (allowedOrgIds.length > 0) {
-      // Get all company IDs within those orgs
       const companyIds = (companies || []).map((c: any) => c.id)
       
       if (companyIds.length > 0) {
-        const { data: answersData, error: answersError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, user_id")
-          .in("company_id", companyIds)
-
-        if (answersError) {
-          console.error("[v0] Error fetching book_answers:", answersError)
+        const { data: counts, error: countsError } = await adminClient
+          .rpc("get_gestor_answer_counts", {
+            p_company_ids: companyIds,
+            p_org_ids: allowedOrgIds
+          })
+        
+        if (countsError) {
+          console.error("Error fetching answer counts via RPC:", countsError)
+        } else if (counts) {
+          for (const row of counts) {
+            const key = `${row.template_id}_${row.company_id}`
+            answerCountsMap.set(key, row.answered_count)
+          }
         }
-        allAnswers = answersData || []
       }
     }
   } catch (error) {
-    console.error("[v0] Exception fetching book_answers:", error)
+    console.error("Exception fetching answer counts:", error)
   }
 
-  // --- Build progress map keyed by "templateId_companyId" ---
-  // Each entry has: { questionsCount, answeredCount, status }
+  // --- Build progress map using RPC counts ---
   const progressMap: Record<string, { questionsCount: number; answeredCount: number; status: "pending" | "in_progress" | "completed" }> = {}
 
   if (assignments && assignments.length > 0) {
-    // Get unique (caderno_id, company_id) pairs from assignments
     const uniquePairs = new Set<string>()
     for (const assignment of assignments) {
       const companyId = (assignment as any).company_id
@@ -356,17 +360,13 @@ export default async function CadernosGestaoPage() {
     }
 
     for (const pairKey of uniquePairs) {
-      const [templateId, companyId] = pairKey.split("_")
+      const splitIndex = pairKey.indexOf("_")
+      const templateId = pairKey.substring(0, splitIndex)
+      const companyId = pairKey.substring(splitIndex + 1)
       const questionsCount = questionCountMap[templateId] || 0
 
-      // Filter answers for this specific template AND company
-      const answersForPair = allAnswers.filter(
-        (a: any) => a.template_id === templateId && a.company_id === companyId
-      )
-
-      // Count unique questions answered (any user, since gestores see overall progress)
-      const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
-      const answeredCount = uniqueAnsweredQuestions.size
+      // Get count from RPC result
+      const answeredCount = answerCountsMap.get(pairKey) || 0
 
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {

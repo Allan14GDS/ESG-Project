@@ -10,6 +10,9 @@ import { MeusCadernosClient } from "@/components/cadernos/meus-cadernos-client"
 import { DemoDashboard } from "@/components/demo-dashboard"
 import { DEMO_USER } from "@/lib/demo-mode"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function MeusCadernosPage() {
   // Check for demo mode
   const hasSupabaseConfig = Boolean(
@@ -61,44 +64,30 @@ export default async function MeusCadernosPage() {
                    profile.role === "admin_main" ||
                    profile.role === "admin"
   
-  // Fetch answers based on user type
-  let answers: any[] = []
+  // Use RPC to get answer counts (bypasses PostgREST 1000-row limit)
+  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
-    if (isGestor) {
-      // Gestores see ALL answers for companies/holdings they manage
-      const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
-      const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
-      
-      if (companyIds.length > 0 || orgIds.length > 0) {
-        const { data: allAnswers, error: answersError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, holding_id, user_id")
-          .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
-        
-        if (answersError) {
-          console.error("[v0] Error fetching answers:", answersError)
-        }
-        
-        answers = allAnswers || []
-      }
-    } else {
-      // Regular users only see their own answers
-      const { data: userAnswers, error: answersError } = await adminClient
-        .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id")
-        .eq("user_id", profile.id)
-      
-      if (answersError) {
-        console.error("[v0] Error fetching user answers:", answersError)
-      }
-      
-      answers = userAnswers || []
-    }
+    const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
+    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
     
-
+    if (companyIds.length > 0 || orgIds.length > 0) {
+      const { data: counts, error: countsError } = await adminClient
+        .rpc("get_gestor_answer_counts", {
+          p_company_ids: companyIds,
+          p_org_ids: orgIds
+        })
+      
+      if (countsError) {
+        console.error("Error fetching answer counts via RPC:", countsError)
+      } else if (counts) {
+        for (const row of counts) {
+          const key = `${row.template_id}_${row.company_id}`
+          answerCountsMap.set(key, row.answered_count)
+        }
+      }
+    }
   } catch (error) {
-    console.error("[v0] Exception fetching answers:", error)
-    answers = []
+    console.error("Exception fetching answer counts:", error)
   }
 
   // Get unique caderno IDs
@@ -260,35 +249,13 @@ export default async function MeusCadernosPage() {
   for (const [uniqueKey, caderno] of cadernosMap) {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
-    // Filter answers for this specific template AND company
-    // IMPORTANT: Each company has its own set of answers for the same template
-    // We must filter by company_id to count answers specific to this company
-    const answeredForCaderno = answers.filter((a: any) => {
-      if (a.template_id !== caderno.id) return false
-      
-      // If caderno has company_id (assigned to specific company)
-      if (caderno.company_id) {
-        // STRICT MATCH: Only count answers that have the exact same company_id
-        // This ensures we don't mix answers from different companies
-        return a.company_id === caderno.company_id
-      }
-      
-      // If no company_id (direct to holding), should not count any answers here
-      // Holding-level cadernos get their counts when instantiated per-company
-      return false
-    })
-
-    // Count unique questions answered for this specific company
-    const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a) => a.question_id))
-
-    // Count questions that need correction (rejected or pending revision)
-    const needsCorrectionCount = answeredForCaderno.filter((a) =>
-      a.status === "rejeitado" || a.status === "pendente_revisao"
-    ).length
+    // Get count from RPC result
+    const countKey = `${caderno.id}_${caderno.company_id}`
+    const answeredCount = caderno.company_id ? (answerCountsMap.get(countKey) || 0) : 0
 
     caderno.questionsCount = questionCount
-    caderno.answeredCount = uniqueAnsweredQuestions.size
-    caderno.needsCorrection = needsCorrectionCount
+    caderno.answeredCount = answeredCount
+    caderno.needsCorrection = 0 // TODO: Add correction count RPC if needed
 
     // Status based on answered count vs total questions
     if (caderno.answeredCount === 0) {
@@ -322,17 +289,10 @@ export default async function MeusCadernosPage() {
       const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
         const questionCount = questionCountMap.get(holdingCaderno.id) || 0
         
-        // Filter answers for this company specifically
-        const answeredForCaderno = answers.filter((a: any) => 
-          a.template_id === holdingCaderno.id && a.company_id === company.id
-        )
+        // Get count from RPC result for this company
+        const countKey = `${holdingCaderno.id}_${company.id}`
+        const answeredCount = answerCountsMap.get(countKey) || 0
         
-        const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
-        const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
-          a.status === "rejeitado" || a.status === "pendente_revisao"
-        ).length
-        
-        const answeredCount = uniqueAnsweredQuestions.size
         let status: "pending" | "in_progress" | "completed" = "pending"
         if (answeredCount === 0) {
           status = "pending"
@@ -347,7 +307,7 @@ export default async function MeusCadernosPage() {
           company_id: company.id, // Override with company ID
           questionsCount: questionCount,
           answeredCount: answeredCount,
-          needsCorrection: needsCorrectionCount,
+          needsCorrection: 0, // TODO: Add correction count RPC if needed
           status: status,
         }
       })
@@ -410,6 +370,8 @@ export default async function MeusCadernosPage() {
 
   // Combine holdings and standalone orgs
   const allHoldingsAndOrgs = [...holdingsWithCompanies, ...standaloneOrgs]
+
+
 
   const totalCadernos = cadernos.length
   const completedCadernos = cadernos.filter((c) => c.status === "completed").length

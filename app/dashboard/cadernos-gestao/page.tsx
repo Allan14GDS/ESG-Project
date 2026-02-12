@@ -320,33 +320,34 @@ export default async function CadernosGestaoPage() {
     }
   }
 
-  // --- Fetch all book_answers for the allowed organizations/companies ---
-  // IMPORTANT: .limit(100000) overrides Supabase's default 1000-row limit
-  let allAnswers: any[] = []
+  // --- Use RPC to get answer counts (bypasses PostgREST 1000-row limit) ---
+  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
       
-      // Fetch answers ONLY by company_id (since all answers have company_id filled)
       if (companyIds.length > 0) {
-        const { data: answersData, error: answersError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, holding_id, user_id")
-          .in("company_id", companyIds)
-          .limit(100000)
-
-        if (answersError) {
-          console.error("Error fetching book_answers:", answersError)
-        } else {
-          allAnswers = answersData || []
+        const { data: counts, error: countsError } = await adminClient
+          .rpc("get_gestor_answer_counts", {
+            p_company_ids: companyIds,
+            p_org_ids: allowedOrgIds
+          })
+        
+        if (countsError) {
+          console.error("Error fetching answer counts via RPC:", countsError)
+        } else if (counts) {
+          for (const row of counts) {
+            const key = `${row.template_id}_${row.company_id}`
+            answerCountsMap.set(key, row.answered_count)
+          }
         }
       }
     }
   } catch (error) {
-    console.error("Exception fetching book_answers:", error)
+    console.error("Exception fetching answer counts:", error)
   }
 
-  // --- Build progress map keyed by "templateId_companyId" ---
+  // --- Build progress map using RPC counts ---
   const progressMap: Record<string, { questionsCount: number; answeredCount: number; status: "pending" | "in_progress" | "completed" }> = {}
 
   if (assignments && assignments.length > 0) {
@@ -364,28 +365,8 @@ export default async function CadernosGestaoPage() {
       const companyId = pairKey.substring(splitIndex + 1)
       const questionsCount = questionCountMap[templateId] || 0
 
-      // Filter answers for this specific template AND company
-      const answersForPair = allAnswers.filter(
-        (a: any) => a.template_id === templateId && a.company_id === companyId
-      )
-
-      // Count unique questions answered
-      const uniqueAnsweredQuestions = new Set(answersForPair.map((a: any) => a.question_id))
-      const answeredCount = uniqueAnsweredQuestions.size
-      
-      // Debug GRI 204
-      if (templateId === '6bdbbebc-910f-4a07-a5e1-7fbca3e98792') {
-        console.log('[v0] GRI 204 progressMap build:', {
-          pairKey,
-          templateId,
-          companyId,
-          allAnswersTotal: allAnswers.length,
-          answersForPair: answersForPair.length,
-          answeredCount,
-          questionsCount,
-          sampleAnswer: answersForPair[0]
-        })
-      }
+      // Get count from RPC result
+      const answeredCount = answerCountsMap.get(pairKey) || 0
 
       let status: "pending" | "in_progress" | "completed" = "pending"
       if (answeredCount === 0) {

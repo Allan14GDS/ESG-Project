@@ -64,30 +64,30 @@ export default async function MeusCadernosPage() {
                    profile.role === "admin_main" ||
                    profile.role === "admin"
   
-  // Fetch ALL answers for companies/holdings user has access to
-  // Count total progress per (template, company) regardless of who answered
-  // IMPORTANT: .limit(100000) overrides Supabase's default 1000-row limit
-  let answers: any[] = []
+  // Use RPC to get answer counts (bypasses PostgREST 1000-row limit)
+  let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
     const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
+    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
     
-    // Fetch answers ONLY by company_id (since all answers have company_id filled)
-    if (companyIds.length > 0) {
-      const { data: answersData, error: answersError } = await adminClient
-        .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id, user_id")
-        .in("company_id", companyIds)
-        .limit(100000)
+    if (companyIds.length > 0 || orgIds.length > 0) {
+      const { data: counts, error: countsError } = await adminClient
+        .rpc("get_gestor_answer_counts", {
+          p_company_ids: companyIds,
+          p_org_ids: orgIds
+        })
       
-      if (answersError) {
-        console.error("Error fetching answers:", answersError)
-      } else {
-        answers = answersData || []
+      if (countsError) {
+        console.error("Error fetching answer counts via RPC:", countsError)
+      } else if (counts) {
+        for (const row of counts) {
+          const key = `${row.template_id}_${row.company_id}`
+          answerCountsMap.set(key, row.answered_count)
+        }
       }
     }
   } catch (error) {
-    console.error("Exception fetching answers:", error)
-    answers = []
+    console.error("Exception fetching answer counts:", error)
   }
 
   // Get unique caderno IDs
@@ -249,23 +249,13 @@ export default async function MeusCadernosPage() {
   for (const [uniqueKey, caderno] of cadernosMap) {
     const questionCount = questionCountMap.get(caderno.id) || 0
 
-    // Filter answers for this specific template AND company
-    const answeredForCaderno = answers.filter((a: any) => {
-      if (a.template_id !== caderno.id) return false
-      if (caderno.company_id) {
-        return a.company_id === caderno.company_id
-      }
-      return false
-    })
-
-    const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
-    const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
-      a.status === "rejeitado" || a.status === "pendente_revisao"
-    ).length
+    // Get count from RPC result
+    const countKey = `${caderno.id}_${caderno.company_id}`
+    const answeredCount = caderno.company_id ? (answerCountsMap.get(countKey) || 0) : 0
 
     caderno.questionsCount = questionCount
-    caderno.answeredCount = uniqueAnsweredQuestions.size
-    caderno.needsCorrection = needsCorrectionCount
+    caderno.answeredCount = answeredCount
+    caderno.needsCorrection = 0 // TODO: Add correction count RPC if needed
 
     // Status based on answered count vs total questions
     if (caderno.answeredCount === 0) {
@@ -299,16 +289,9 @@ export default async function MeusCadernosPage() {
       const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
         const questionCount = questionCountMap.get(holdingCaderno.id) || 0
         
-        // Filter answers for this company specifically
-        const answeredForCaderno = answers.filter((a: any) => 
-          a.template_id === holdingCaderno.id && a.company_id === company.id
-        )
-        
-        const uniqueAnsweredQuestions = new Set(answeredForCaderno.map((a: any) => a.question_id))
-        const needsCorrectionCount = answeredForCaderno.filter((a: any) =>
-          a.status === "rejeitado" || a.status === "pendente_revisao"
-        ).length
-        const answeredCount = uniqueAnsweredQuestions.size
+        // Get count from RPC result for this company
+        const countKey = `${holdingCaderno.id}_${company.id}`
+        const answeredCount = answerCountsMap.get(countKey) || 0
         
         let status: "pending" | "in_progress" | "completed" = "pending"
         if (answeredCount === 0) {
@@ -324,7 +307,7 @@ export default async function MeusCadernosPage() {
           company_id: company.id, // Override with company ID
           questionsCount: questionCount,
           answeredCount: answeredCount,
-          needsCorrection: needsCorrectionCount,
+          needsCorrection: 0, // TODO: Add correction count RPC if needed
           status: status,
         }
       })

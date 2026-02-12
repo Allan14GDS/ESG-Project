@@ -61,41 +61,26 @@ export default async function MeusCadernosPage() {
                    profile.role === "admin_main" ||
                    profile.role === "admin"
   
-  // Fetch answers based on user type
+  // Fetch ALL answers for companies/holdings user has access to
+  // Count total progress per (template, company) regardless of who answered
   // IMPORTANT: .limit(100000) overrides Supabase's default 1000-row limit
   let answers: any[] = []
   try {
-    if (isGestor) {
-      // Gestores see ALL answers for companies/holdings they manage
-      const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
-      const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
-      
-      if (companyIds.length > 0 || orgIds.length > 0) {
-        const { data: allAnswers, error: answersError } = await adminClient
-          .from("book_answers")
-          .select("template_id, question_id, status, company_id, holding_id, user_id")
-          .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
-          .limit(100000)
-        
-        if (answersError) {
-          console.error("Error fetching answers:", answersError)
-        }
-        
-        answers = allAnswers || []
-      }
-    } else {
-      // Regular users only see their own answers
-      const { data: userAnswers, error: answersError } = await adminClient
+    const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
+    const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
+    
+    if (companyIds.length > 0 || orgIds.length > 0) {
+      const { data: allAnswers, error: answersError } = await adminClient
         .from("book_answers")
-        .select("template_id, question_id, status, company_id, holding_id")
-        .eq("user_id", profile.id)
+        .select("template_id, question_id, status, company_id, holding_id, user_id")
+        .or(`company_id.in.(${companyIds.join(",")}),holding_id.in.(${orgIds.join(",")})`)
         .limit(100000)
       
       if (answersError) {
-        console.error("Error fetching user answers:", answersError)
+        console.error("Error fetching answers:", answersError)
       }
       
-      answers = userAnswers || []
+      answers = allAnswers || []
     }
   } catch (error) {
     console.error("Exception fetching answers:", error)

@@ -27,15 +27,26 @@ export async function POST(request: NextRequest) {
 
     const adminClient = createAdminClient()
 
-    // Fetch company info
+    // Fetch company and holding info
     const { data: company } = await adminClient
       .from("companies")
-      .select("name")
+      .select("name, holding_id")
       .eq("id", companyId)
       .single()
 
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
+    }
+
+    // Fetch holding info
+    let holdingName = ""
+    if (company.holding_id) {
+      const { data: holding } = await adminClient
+        .from("organizations")
+        .select("name")
+        .eq("id", company.holding_id)
+        .single()
+      holdingName = holding?.name || ""
     }
 
     // Determine which cadernos to fetch
@@ -138,15 +149,12 @@ export async function POST(request: NextRequest) {
       const reviewObservation = valueJsonb?.reviewObservation || ""
 
       exportData.push({
+        Holding: holdingName,
+        Empresa: company.name,
         Caderno: template?.name || "",
-        Framework: framework,
-        Categoria: category,
-        Tópico: topic,
-        "Identificador Único": question?.unique_identifier || "",
         "Nome da Questão": question?.label || "",
         "Tipo de Questão": question?.type || "",
         "Resposta do Usuário": answer?.value || "",
-        Status: answer?.status || "não respondido",
         "Não Aplicável": notApplicable ? "Sim" : "Não",
         "Observação de Revisão": reviewObservation,
         "URL da Evidência": answer?.evidence_url || "",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,10 +14,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Download, Loader2 } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Caderno {
   id: string
   name: string
+}
+
+interface User {
+  id: string
+  full_name: string
+  email: string
 }
 
 interface ExportCompanyDataButtonProps {
@@ -28,9 +35,35 @@ interface ExportCompanyDataButtonProps {
 
 export function ExportCompanyDataButton({ companyId, companyName, cadernos }: ExportCompanyDataButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [filterType, setFilterType] = useState<"cadernos" | "users">("cadernos")
   const [selectedCadernos, setSelectedCadernos] = useState<string[]>([])
+  const [selectedUser, setSelectedUser] = useState<string>("")
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [format, setFormat] = useState<"xlsx" | "csv">("xlsx")
   const [isExporting, setIsExporting] = useState(false)
+
+  // Fetch users when dialog opens
+  useEffect(() => {
+    if (isOpen && users.length === 0) {
+      fetchUsers()
+    }
+  }, [isOpen])
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true)
+    try {
+      const response = await fetch(`/api/company-users?companyId=${companyId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
 
   const handleToggleCaderno = (cadernoId: string) => {
     setSelectedCadernos((prev) =>
@@ -47,7 +80,8 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
   }
 
   const handleExport = async () => {
-    if (selectedCadernos.length === 0) return
+    if (filterType === "cadernos" && selectedCadernos.length === 0) return
+    if (filterType === "users" && !selectedUser) return
 
     setIsExporting(true)
 
@@ -59,7 +93,8 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
         },
         body: JSON.stringify({
           companyId,
-          cadernoIds: selectedCadernos,
+          cadernoIds: filterType === "cadernos" ? selectedCadernos : undefined,
+          userId: filterType === "users" ? selectedUser : undefined,
           format,
         }),
       })
@@ -105,7 +140,7 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
           <DialogHeader>
             <DialogTitle>Exportar Dados da Empresa</DialogTitle>
             <DialogDescription>
-              Selecione os cadernos que deseja exportar para {companyName}
+              Selecione como deseja filtrar a exportação para {companyName}
             </DialogDescription>
           </DialogHeader>
 
@@ -129,47 +164,95 @@ export function ExportCompanyDataButton({ companyId, companyName, cadernos }: Ex
               </RadioGroup>
             </div>
 
-            {/* Cadernos Selection */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Cadernos</Label>
-                <Button variant="ghost" size="sm" onClick={handleSelectAll} type="button">
-                  {selectedCadernos.length === cadernos.length ? "Desmarcar Todos" : "Selecionar Todos"}
-                </Button>
-              </div>
+            {/* Filter Type Tabs */}
+            <Tabs value={filterType} onValueChange={(value) => setFilterType(value as "cadernos" | "users")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="cadernos">Por Cadernos</TabsTrigger>
+                <TabsTrigger value="users">Por Usuário</TabsTrigger>
+              </TabsList>
 
-              {cadernos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum caderno disponível para exportação</p>
-              ) : (
-                <div className="max-h-[300px] space-y-2 overflow-y-auto rounded-lg border border-border/50 p-4">
-                  {cadernos.map((caderno) => (
-                    <div key={caderno.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={caderno.id}
-                        checked={selectedCadernos.includes(caderno.id)}
-                        onCheckedChange={() => handleToggleCaderno(caderno.id)}
-                      />
-                      <Label htmlFor={caderno.id} className="cursor-pointer text-sm font-normal">
-                        {caderno.name}
-                      </Label>
-                    </div>
-                  ))}
+              <TabsContent value="cadernos" className="space-y-3 mt-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Cadernos</Label>
+                  <Button variant="ghost" size="sm" onClick={handleSelectAll} type="button">
+                    {selectedCadernos.length === cadernos.length ? "Desmarcar Todos" : "Selecionar Todos"}
+                  </Button>
                 </div>
-              )}
-            </div>
 
-            {selectedCadernos.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {selectedCadernos.length} caderno(s) selecionado(s)
-              </p>
-            )}
+                {cadernos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum caderno disponível para exportação</p>
+                ) : (
+                  <div className="max-h-[300px] space-y-2 overflow-y-auto rounded-lg border border-border/50 p-4">
+                    {cadernos.map((caderno) => (
+                      <div key={caderno.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={caderno.id}
+                          checked={selectedCadernos.includes(caderno.id)}
+                          onCheckedChange={() => handleToggleCaderno(caderno.id)}
+                        />
+                        <Label htmlFor={caderno.id} className="cursor-pointer text-sm font-normal">
+                          {caderno.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedCadernos.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCadernos.length} caderno(s) selecionado(s)
+                  </p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="users" className="space-y-3 mt-4">
+                <Label className="text-sm font-medium">Usuários Atribuídos</Label>
+
+                {isLoadingUsers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : users.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum usuário atribuído a esta empresa</p>
+                ) : (
+                  <RadioGroup value={selectedUser} onValueChange={setSelectedUser}>
+                    <div className="max-h-[300px] space-y-2 overflow-y-auto rounded-lg border border-border/50 p-4">
+                      {users.map((user) => (
+                        <div key={user.id} className="flex items-center space-x-2">
+                          <RadioGroupItem value={user.id} id={user.id} />
+                          <Label htmlFor={user.id} className="cursor-pointer text-sm font-normal flex-1">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{user.full_name}</span>
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                )}
+
+                {selectedUser && (
+                  <p className="text-sm text-muted-foreground">
+                    Exportará todos os cadernos respondidos por {users.find((u) => u.id === selectedUser)?.full_name}
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isExporting}>
               Cancelar
             </Button>
-            <Button onClick={handleExport} disabled={selectedCadernos.length === 0 || isExporting}>
+            <Button
+              onClick={handleExport}
+              disabled={
+                (filterType === "cadernos" && selectedCadernos.length === 0) ||
+                (filterType === "users" && !selectedUser) ||
+                isExporting
+              }
+            >
               {isExporting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -15,10 +15,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { companyId, cadernoIds, format } = body
+    const { companyId, cadernoIds, userId, format } = body
 
-    if (!companyId || !cadernoIds || !Array.isArray(cadernoIds) || cadernoIds.length === 0) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+    if (!companyId) {
+      return NextResponse.json({ error: "Company ID is required" }, { status: 400 })
+    }
+
+    if (!cadernoIds && !userId) {
+      return NextResponse.json({ error: "Either cadernoIds or userId must be provided" }, { status: 400 })
     }
 
     const adminClient = createAdminClient()
@@ -32,6 +36,24 @@ export async function POST(request: NextRequest) {
 
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
+    }
+
+    // Determine which cadernos to fetch
+    let finalCadernoIds = cadernoIds
+
+    if (userId && !cadernoIds) {
+      // If filtering by user, get all cadernos they have answered
+      const { data: userAssignments } = await adminClient
+        .from("book_assignments")
+        .select("caderno_id")
+        .eq("company_id", companyId)
+        .eq("user_id", userId)
+
+      finalCadernoIds = userAssignments?.map((a: any) => a.caderno_id) || []
+
+      if (finalCadernoIds.length === 0) {
+        return NextResponse.json({ error: "User has no cadernos assigned" }, { status: 404 })
+      }
     }
 
     // Fetch all data needed for export
@@ -54,7 +76,7 @@ export async function POST(request: NextRequest) {
           description
         )
       `)
-      .in("book_template_id", cadernoIds)
+      .in("book_template_id", finalCadernoIds)
       .order("book_template_id")
       .order("sort_order")
 
@@ -63,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch answers for this company
-    const { data: answers } = await adminClient
+    let answersQuery = adminClient
       .from("book_answers")
       .select(`
         question_id,
@@ -79,7 +101,14 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq("company_id", companyId)
-      .in("template_id", cadernoIds)
+      .in("template_id", finalCadernoIds)
+
+    // If filtering by user, only get their answers
+    if (userId) {
+      answersQuery = answersQuery.eq("user_id", userId)
+    }
+
+    const { data: answers } = await answersQuery
 
     // Build export data
     const exportData: any[] = []

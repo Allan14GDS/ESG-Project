@@ -24,17 +24,7 @@ export default async function AdminQuestionsPage() {
     .from("book_questions")
     .select("*", { count: "exact", head: true })
 
-  const { data: questions, error: questionsError } = await adminClient
-    .from("book_questions")
-    .select(`
-      *,
-      book_question_junction(
-        book_template_id,
-        book_templates(id, name)
-      )
-    `)
-    .order("created_at", { ascending: false })
-    .range(0, 9999)
+  const { data: questions, error: questionsError } = await adminClient.rpc("get_all_questions_with_templates")
 
   console.log("[v0] Total questions count:", totalQuestionsCount)
   console.log("[v0] Total questions fetched:", questions?.length || 0)

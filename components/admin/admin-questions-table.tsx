@@ -174,6 +174,7 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                     const disclosure = metadata.disclosure || ""
                     const evidencias = metadata.evidencias || ""
                     const obs = metadata.obs || ""
+                    const sub_frameworks = metadata.sub_frameworks || []
 
                     return (
                       <tr key={question.id} className="group hover:bg-muted/20">
@@ -238,6 +239,7 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                                 tipo_resposta: question.type || "",
                                 evidencias: evidencias,
                                 obs_nao_aplicavel: obs,
+                                sub_frameworks: sub_frameworks,
                               }}
                               currentTemplates={
                                 question.book_question_junction?.map((j: any) => j.book_template_id) || []

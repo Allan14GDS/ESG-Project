@@ -28,7 +28,7 @@ interface EditQuestionWithTemplatesButtonProps {
     tipo_resposta: string
     evidencias: string
     obs_nao_aplicavel: string
-    sub_frameworks?: string[]
+    sub_frameworks?: string[] | any[]
   }
   currentTemplates: string[]
   allTemplates: { id: string; name: string }[]
@@ -58,6 +58,7 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
 
   useEffect(() => {
     if (open) {
+      console.log("[v0] Opening edit dialog with question:", question)
       setFormData({
         linha_coleta: question.linha_coleta || "",
         disclosure: question.disclosure || "",
@@ -66,9 +67,22 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
         obs_nao_aplicavel: question.obs_nao_aplicavel || "",
       })
       setSelectedTemplates(currentTemplates)
-      setSubFrameworks(question.sub_frameworks && question.sub_frameworks.length > 0 ? question.sub_frameworks : [""])
+      const subFrameworksArray = Array.isArray(question.sub_frameworks) && question.sub_frameworks.length > 0 
+        ? question.sub_frameworks 
+        : [""]
+      setSubFrameworks(subFrameworksArray)
+      console.log("[v0] Form data set:", {
+        formData: {
+          linha_coleta: question.linha_coleta || "",
+          disclosure: question.disclosure || "",
+          tipo_resposta: question.tipo_resposta || "texto",
+          evidencias: question.evidencias || "",
+          obs_nao_aplicavel: question.obs_nao_aplicavel || "",
+        },
+        subFrameworks: subFrameworksArray
+      })
     }
-  }, [open])
+  }, [open, question, currentTemplates])
 
   const handleToggleTemplate = (templateId: string) => {
     setSelectedTemplates((prev) =>

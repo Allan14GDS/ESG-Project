@@ -34,6 +34,7 @@ export default async function AdminQuestionsPage() {
       )
     `)
     .order("created_at", { ascending: false })
+    .limit(10000)
 
   console.log("[v0] Total questions count:", totalQuestionsCount)
   console.log("[v0] Total questions fetched:", questions?.length || 0)

@@ -28,7 +28,7 @@ interface EditQuestionWithTemplatesButtonProps {
     tipo_resposta: string
     evidencias: string
     obs_nao_aplicavel: string
-    sub_frameworks?: string[]
+    sub_frameworks?: string[] | any[]
   }
   currentTemplates: string[]
   allTemplates: { id: string; name: string }[]
@@ -52,8 +52,15 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
   })
 
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(currentTemplates)
-  const [subFrameworks, setSubFrameworks] = useState<string[]>(
-    question.sub_frameworks && question.sub_frameworks.length > 0 ? question.sub_frameworks : [""],
+  const [frameworkPairs, setFrameworkPairs] = useState<Array<{ framework: string; subFramework: string }>>(
+    question.sub_frameworks && Array.isArray(question.sub_frameworks) && question.sub_frameworks.length > 0 
+      ? question.sub_frameworks.map((sf: any) => {
+          if (typeof sf === 'string') {
+            return { framework: '', subFramework: sf }
+          }
+          return { framework: sf.framework || '', subFramework: sf.subFramework || sf.sub_framework || '' }
+        })
+      : [{ framework: '', subFramework: '' }],
   )
 
   useEffect(() => {
@@ -66,9 +73,17 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
         obs_nao_aplicavel: question.obs_nao_aplicavel || "",
       })
       setSelectedTemplates(currentTemplates)
-      setSubFrameworks(question.sub_frameworks && question.sub_frameworks.length > 0 ? question.sub_frameworks : [""])
+      const frameworkPairsArray = Array.isArray(question.sub_frameworks) && question.sub_frameworks.length > 0 
+        ? question.sub_frameworks.map((sf: any) => {
+            if (typeof sf === 'string') {
+              return { framework: '', subFramework: sf }
+            }
+            return { framework: sf.framework || '', subFramework: sf.subFramework || sf.sub_framework || '' }
+          })
+        : [{ framework: '', subFramework: '' }]
+      setFrameworkPairs(frameworkPairsArray)
     }
-  }, [open])
+  }, [open, question, currentTemplates])
 
   const handleToggleTemplate = (templateId: string) => {
     setSelectedTemplates((prev) =>
@@ -76,20 +91,20 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
     )
   }
 
-  const addSubFramework = () => {
-    setSubFrameworks([...subFrameworks, ""])
+  const addFrameworkPair = () => {
+    setFrameworkPairs([...frameworkPairs, { framework: '', subFramework: '' }])
   }
 
-  const removeSubFramework = (index: number) => {
-    if (subFrameworks.length > 1) {
-      setSubFrameworks(subFrameworks.filter((_, i) => i !== index))
+  const removeFrameworkPair = (index: number) => {
+    if (frameworkPairs.length > 1) {
+      setFrameworkPairs(frameworkPairs.filter((_, i) => i !== index))
     }
   }
 
-  const updateSubFramework = (index: number, value: string) => {
-    const updated = [...subFrameworks]
-    updated[index] = value
-    setSubFrameworks(updated)
+  const updateFrameworkPair = (index: number, field: 'framework' | 'subFramework', value: string) => {
+    const updated = [...frameworkPairs]
+    updated[index][field] = value
+    setFrameworkPairs(updated)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,7 +112,9 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
     setIsSubmitting(true)
 
     try {
-      const filteredSubFrameworks = subFrameworks.filter((sf) => sf.trim() !== "")
+      const filteredFrameworkPairs = frameworkPairs.filter(
+        (pair) => pair.framework.trim() !== "" || pair.subFramework.trim() !== ""
+      )
 
       const response = await fetch(`/api/questions/${question.id}`, {
         method: "PATCH",
@@ -105,7 +122,7 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
         body: JSON.stringify({
           ...formData,
           templateIds: selectedTemplates,
-          sub_frameworks: filteredSubFrameworks.length > 0 ? filteredSubFrameworks : undefined,
+          sub_frameworks: filteredFrameworkPairs.length > 0 ? filteredFrameworkPairs : undefined,
         }),
       })
 
@@ -233,43 +250,54 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Sub-frameworks</Label>
+                <Label>Frameworks e Sub-frameworks</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={addSubFramework}
+                  onClick={addFrameworkPair}
                   className="h-8 gap-1 bg-transparent"
                 >
                   <Plus className="h-3 w-3" />
-                  Adicionar Nível
+                  Adicionar Framework
                 </Button>
               </div>
-              <div className="space-y-2">
-                {subFrameworks.map((subFramework, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={subFramework}
-                      onChange={(e) => updateSubFramework(index, e.target.value)}
-                      placeholder={`Ex: ${index === 0 ? "301" : index === 1 ? "Gestão de Materiais" : "Sub-categoria"}`}
-                      className="flex-1"
-                    />
-                    {subFrameworks.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSubFramework(index)}
-                        className="h-10 w-10 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+              <div className="space-y-3">
+                {frameworkPairs.map((pair, index) => (
+                  <div key={index} className="space-y-2 rounded-lg border border-border/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Framework {index + 1}</span>
+                      {frameworkPairs.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFrameworkPair(index)}
+                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        value={pair.framework}
+                        onChange={(e) => updateFrameworkPair(index, 'framework', e.target.value)}
+                        placeholder="Ex: GRI, SASB, TCFD"
+                        className="flex-1"
+                      />
+                      <Input
+                        value={pair.subFramework}
+                        onChange={(e) => updateFrameworkPair(index, 'subFramework', e.target.value)}
+                        placeholder="Ex: 301, Gestão de Materiais"
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Hierarquia de categorias (ex: "301", "Gestão de Materiais"). Serão exibidas como label da questão.
+                Adicione frameworks e seus respectivos sub-frameworks. Cada par representa um framework (ex: GRI, SASB) e seu detalhamento (ex: 301, Gestão de Materiais).
               </p>
             </div>
           </div>

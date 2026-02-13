@@ -24,21 +24,44 @@ export default async function AdminQuestionsPage() {
     .from("book_questions")
     .select("*", { count: "exact", head: true })
 
-  const { data: questions, error: questionsError } = await adminClient.rpc("get_all_questions_with_templates")
+  // Fetch ALL questions in batches of 1000 to bypass PostgREST limit
+  const PAGE_SIZE = 1000
+  let allQuestions: any[] = []
+  let from = 0
+  let hasMore = true
 
-  console.log("[v0] Total questions count:", totalQuestionsCount)
-  console.log("[v0] Total questions fetched:", questions?.length || 0)
-  if (questions && questions.length > 0) {
-    console.log("[v0] First question with junctions:", questions[0])
+  while (hasMore) {
+    const { data: batch, error: batchError } = await adminClient
+      .from("book_questions")
+      .select(`
+        *,
+        book_question_junction(
+          book_template_id,
+          book_templates(id, name)
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1)
+
+    if (batchError) {
+      console.error("[v0] Error fetching questions batch:", batchError)
+      break
+    }
+
+    if (batch && batch.length > 0) {
+      allQuestions = allQuestions.concat(batch)
+      from += PAGE_SIZE
+      hasMore = batch.length === PAGE_SIZE
+    } else {
+      hasMore = false
+    }
   }
 
-  if (questionsError) {
-    console.error("[v0] Error fetching questions:", questionsError)
-  }
+  const questions = allQuestions
+  const questionsError = allQuestions.length === 0 ? true : null
 
   const questionsWithAssignments =
-    questions?.filter((q) => q.book_question_junction && q.book_question_junction.length > 0).length || 0
-  console.log("[v0] Questions with assignments:", questionsWithAssignments)
+    questions?.filter((q: any) => q.book_question_junction && q.book_question_junction.length > 0).length || 0
 
   // Fetch all templates for the assignment dropdown
   const { data: allTemplates } = await adminClient

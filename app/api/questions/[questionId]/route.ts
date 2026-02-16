@@ -9,6 +9,34 @@ export async function PATCH(request: NextRequest, { params }: { params: { questi
 
     const adminClient = createAdminClient()
 
+    // Flatten frameworks for metadata_v2
+    const frameworks = body.sub_frameworks || []
+    const metadataV2: any = {
+      disclosure: body.disclosure,
+      evidencias: body.evidencias,
+      obs: body.obs_nao_aplicavel,
+      legacy_sub_frameworks: frameworks, // Store original array structure for safety
+    }
+
+    if (Array.isArray(frameworks)) {
+      frameworks.forEach((pair: any, index: number) => {
+        const num = index + 1
+        // We currently support up to framework_2 in the explicit schema columns logic
+        // But let's map at least first 2
+        if (num <= 2) {
+          metadataV2[`framework_${num}`] = pair.framework || ""
+          metadataV2[`sub_framework_${num}`] = pair.subFramework || pair.sub_framework || ""
+        }
+      })
+    }
+
+    // Ensure we clear fields if they are not present in the array (e.g. if user removed the second framework)
+    if (!metadataV2.framework_1) metadataV2.framework_1 = ""
+    if (!metadataV2.sub_framework_1) metadataV2.sub_framework_1 = ""
+    if (!metadataV2.framework_2) metadataV2.framework_2 = ""
+    if (!metadataV2.sub_framework_2) metadataV2.sub_framework_2 = ""
+
+
     const { data, error } = await adminClient
       .from("book_questions")
       .update({
@@ -20,6 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { questi
           obs: body.obs_nao_aplicavel,
           sub_frameworks: body.sub_frameworks || [],
         },
+        metadata_v2: metadataV2,
         updated_at: new Date().toISOString(),
       })
       .eq("id", questionId)

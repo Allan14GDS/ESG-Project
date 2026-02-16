@@ -73,38 +73,33 @@ export default async function AdminQuestionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href={profile.role === "admin_main" ? "/admin" : "/dashboard"}>
-            <Button variant="ghost" size="sm" className="gap-2 mb-4">
-              <ArrowLeft className="h-4 w-4" />
-              {profile.role === "admin_main" ? "Voltar ao Painel" : "Voltar ao Dashboard"}
-            </Button>
-          </Link>
           <div className="flex items-center gap-2 mb-4">
             <Link href={profile.role === "admin_main" ? "/admin" : "/dashboard"}>
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                {profile.role === "admin_main" ? "Voltar ao Painel" : "Voltar ao Dashboard"}
+                <span className="hidden sm:inline">{profile.role === "admin_main" ? "Voltar ao Painel" : "Voltar ao Dashboard"}</span>
+                <span className="sm:hidden">Voltar</span>
               </Button>
             </Link>
             <CommandCenterButton userRole={profile.role} />
           </div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-              <HelpCircle className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+              <HelpCircle className="h-5 w-5 text-primary" />
             </div>
-            <span className="text-sm font-medium uppercase tracking-widest text-primary">Banco de Questões</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-primary">Banco de Questões</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground">Gerenciar Questões</h1>
-              <p className="mt-3 text-muted-foreground">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Gerenciar Questões</h1>
+              <p className="mt-2 text-sm sm:text-base text-muted-foreground">
                 Visualize todas as questões master e atribua-as rapidamente a múltiplos cadernos
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <ImportCsvButton allTemplates={allTemplates || []} />
               <CreateQuestionButton allTemplates={allTemplates || []} />
             </div>

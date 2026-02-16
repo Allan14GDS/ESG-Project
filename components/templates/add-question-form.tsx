@@ -25,6 +25,10 @@ export function AddQuestionForm({ templateId, nextSortOrder }: AddQuestionFormPr
     tipo_resposta: "text",
     evidencia: "",
     obs: "",
+    framework_1: "",
+    sub_framework_1: "",
+    framework_2: "",
+    sub_framework_2: "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,6 +51,10 @@ export function AddQuestionForm({ templateId, nextSortOrder }: AddQuestionFormPr
         disclosure: formData.disclosure,
         evidencia: formData.evidencia,
         obs: formData.obs,
+        framework_1: formData.framework_1,
+        sub_framework_1: formData.sub_framework_1,
+        framework_2: formData.framework_2,
+        sub_framework_2: formData.sub_framework_2,
       },
     })
 
@@ -61,6 +69,10 @@ export function AddQuestionForm({ templateId, nextSortOrder }: AddQuestionFormPr
         tipo_resposta: "text",
         evidencia: "",
         obs: "",
+        framework_1: "",
+        sub_framework_1: "",
+        framework_2: "",
+        sub_framework_2: "",
       })
       router.refresh()
     }
@@ -78,6 +90,48 @@ export function AddQuestionForm({ templateId, nextSortOrder }: AddQuestionFormPr
             onChange={(e) => setFormData({ ...formData, disclosure: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">Detalhamento da pergunta</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="framework_1">Framework 1</Label>
+            <Input
+              id="framework_1"
+              placeholder="Ex: GRI"
+              value={formData.framework_1}
+              onChange={(e) => setFormData({ ...formData, framework_1: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sub_framework_1">Sub-framework 1</Label>
+            <Input
+              id="sub_framework_1"
+              placeholder="Ex: 301"
+              value={formData.sub_framework_1}
+              onChange={(e) => setFormData({ ...formData, sub_framework_1: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="framework_2">Framework 2</Label>
+            <Input
+              id="framework_2"
+              placeholder="Ex: SASB"
+              value={formData.framework_2}
+              onChange={(e) => setFormData({ ...formData, framework_2: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sub_framework_2">Sub-framework 2</Label>
+            <Input
+              id="sub_framework_2"
+              placeholder="Ex: IF-EU-110a.1"
+              value={formData.sub_framework_2}
+              onChange={(e) => setFormData({ ...formData, sub_framework_2: e.target.value })}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">

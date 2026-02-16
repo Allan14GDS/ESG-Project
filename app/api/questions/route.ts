@@ -23,6 +23,10 @@ export async function POST(request: Request) {
       evidencias,
       obs_nao_aplicavel,
       sub_framework,
+      framework_1,
+      sub_framework_1,
+      framework_2,
+      sub_framework_2,
       templateIds,
       subFrameworks,
       confirmDuplicate, // New parameter to confirm adding duplicate to current template
@@ -121,8 +125,24 @@ export async function POST(request: Request) {
           disclosure: disclosure || "",
           evidencias: evidencias || "",
           obs: obs_nao_aplicavel || "",
+          framework_1: framework_1 || "",
+          sub_framework_1: sub_framework_1 || "",
+          framework_2: framework_2 || "",
+          sub_framework_2: sub_framework_2 || "",
           sub_framework: sub_framework || "",
           sub_frameworks: subFrameworks || {},
+        },
+        metadata_v2: {
+          disclosure: disclosure || "",
+          evidencias: evidencias || "",
+          obs: obs_nao_aplicavel || "",
+          framework_1: framework_1 || "",
+          sub_framework_1: sub_framework_1 || "",
+          framework_2: framework_2 || "",
+          sub_framework_2: sub_framework_2 || "",
+          sub_frameworks: subFrameworks || {}, // Added standard sub_frameworks field
+          // Ensure we preserve the original structure too for migration/comparison if needed
+          legacy_sub_frameworks: subFrameworks || {},
         },
       })
       .select()

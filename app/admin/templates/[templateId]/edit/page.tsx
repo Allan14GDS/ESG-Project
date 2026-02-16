@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useCallback, useMemo } from "react"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@supabase/ssr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,6 +49,8 @@ import {
   X,
   GripVertical,
   Search,
+  ClipboardCheck,
+  Info,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -84,6 +84,7 @@ interface Question {
   order_index: number
   caderno_id: string | null
   metadata: any
+  metadata_v2?: any
   created_at: string
   updated_at: string
   unique_identifier: string
@@ -104,11 +105,15 @@ function SortableQuestionItem({
   index,
   startIndex,
   onDelete,
+  onEdit,
+  templateId,
 }: {
   question: Question
   index: number
   startIndex: number
   onDelete: (q: Question) => void
+  onEdit: (q: Question) => void
+  templateId: string
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: question.id,
@@ -133,15 +138,56 @@ function SortableQuestionItem({
         {startIndex + index + 1}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate">{question.label}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs bg-muted px-2 py-0.5 rounded">{question.type}</span>
+        <p className="font-medium text-sm lg:text-base leading-snug">{question.label}</p>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+            {question.type}
+          </span>
           {question.metadata?.disclosure && (
-            <span className="text-xs text-muted-foreground">Disclosure: {question.metadata.disclosure}</span>
+            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+              Disclosure: {question.metadata.disclosure}
+            </span>
+          )}
+          {(question.metadata?.evidencia || question.metadata?.evidencias) && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <ClipboardCheck className="h-3 w-3" />
+              Evidência: {question.metadata.evidencia || question.metadata.evidencias}
+            </span>
+          )}
+          {(question.metadata?.obs || question.metadata?.obs_nao_aplicavel) && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Obs: {question.metadata.obs || question.metadata.obs_nao_aplicavel}
+            </span>
           )}
         </div>
+        {/* Render sub-frameworks if they exist for this template */}
+        {question.metadata?.sub_frameworks?.[templateId] &&
+          Array.isArray(question.metadata.sub_frameworks[templateId]) &&
+          question.metadata.sub_frameworks[templateId].length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {question.metadata.sub_frameworks[templateId]
+                .filter((sf: string) => sf.trim() !== "")
+                .map((sf: string, i: number) => (
+                  <span
+                    key={i}
+                    className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded-sm"
+                  >
+                    {sf}
+                  </span>
+                ))}
+            </div>
+          )}
       </div>
       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          onClick={() => onEdit(question)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
@@ -155,9 +201,9 @@ function SortableQuestionItem({
   )
 }
 
-export default function EditTemplatePage({ params }: { params: { templateId: string } }) {
+export default function EditTemplatePage({ params }: { params: Promise<{ templateId: string }> }) {
   const router = useRouter()
-  const { templateId } = params
+  const { templateId } = React.use(params)
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -181,6 +227,7 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
   const [showClearAllDialog, setShowClearAllDialog] = useState(false)
   const [isClearingAll, setIsClearingAll] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
+  const [isEditingQuestion, setIsEditingQuestion] = useState(false)
   const [questionError, setQuestionError] = useState<string | null>(null)
   const [newQuestion, setNewQuestion] = useState<{
     label: string
@@ -211,7 +258,11 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
   const [isSavingOrder, setIsSavingOrder] = useState(false)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { distance: 5 }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -453,7 +504,7 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
         .map((p) => p.full_name)
         .join(", ")
 
-      const result = await updateBookTemplate(templateId, {
+      const result = await (updateBookTemplate as any)(templateId, {
         name: formData.name,
         description: formData.description,
         type: formData.type,
@@ -524,6 +575,71 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
         sub_frameworks: [""],
       },
     })
+    setIsEditingQuestion(false)
+    setSelectedQuestion(null)
+  }
+
+  const handleEditQuestion = (question: Question) => {
+    setSelectedQuestion(question)
+
+    // Use metadata_v2 if available, otherwise fallback to metadata
+    const meta = question.metadata_v2 || question.metadata || {}
+
+    // Handle sub_frameworks with robust fallback logic
+    let subFrameworks = [""]
+
+    // 1. Try to get from standard object structure { [templateId]: string[] }
+    if (meta.sub_frameworks && !Array.isArray(meta.sub_frameworks) && typeof meta.sub_frameworks === 'object') {
+      subFrameworks = meta.sub_frameworks[templateId] || [""]
+    }
+    // 2. Try legacy array of objects [ { framework, subFramework } ]
+    else if (Array.isArray(meta.sub_frameworks)) {
+      // Filter for current template name if possible, or just map all values if generic
+      // For now, we'll try to map everything as a fallback
+      const mapped = meta.sub_frameworks.map((sf: any) =>
+        typeof sf === 'object' ? sf.subFramework || sf.sub_framework || "" : sf
+      ).filter(Boolean)
+      if (mapped.length > 0) subFrameworks = mapped
+    }
+    // 3. Try flat legacy fields if still empty
+    if ((!subFrameworks || subFrameworks.length === 0 || subFrameworks[0] === "") && (meta.sub_framework_1 || meta.sub_framework_2)) {
+      const legacy = [meta.sub_framework_1, meta.sub_framework_2].filter(Boolean)
+      if (legacy.length > 0) subFrameworks = legacy
+    }
+
+    // Ensure it's an array for the UI
+    if (!Array.isArray(subFrameworks) || subFrameworks.length === 0) subFrameworks = [""]
+
+
+    // Map database types (English) back to frontend types (Portuguese)
+    const typeMapping: { [key: string]: string } = {
+      text: "texto",
+      string: "texto",
+      number: "numero",
+      percentage: "porcentagem",
+      date: "data",
+      file: "arquivo",
+      multiple_choice: "multipla_escolha",
+      yes_no: "sim_nao",
+    }
+
+    const normalizedType = typeMapping[question.type] || question.type
+
+    // Disclosure fallback: check disclosure -> framework_1 -> sub_framework_1
+    const disclosureValue = meta.disclosure || meta.framework_1 || meta.sub_framework_1 || ""
+
+    setNewQuestion({
+      label: question.label,
+      type: normalizedType,
+      metadata: {
+        disclosure: disclosureValue,
+        evidencia: meta.evidencia || meta.evidencias || "",
+        obs: meta.obs || meta.obs_nao_aplicavel || "",
+        sub_frameworks: subFrameworks,
+      },
+    })
+    setIsEditingQuestion(true)
+    setShowNewDialog(true)
   }
 
   const handleCreateQuestion = async () => {
@@ -543,14 +659,106 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
         .replace(/\s+/g, "_")
         .substring(0, 100)
 
+      // Map frontend types (Portuguese) back to database types (English)
+      const saveTypeMapping: { [key: string]: string } = {
+        texto: "text",
+        numero: "number",
+        porcentagem: "percentage",
+        data: "date",
+        arquivo: "file",
+        multipla_escolha: "multiple_choice",
+        sim_nao: "yes_no",
+      }
+
+      const dbType = saveTypeMapping[newQuestion.type] || newQuestion.type
+
+      if (isEditingQuestion && selectedQuestion) {
+        // Prepare merged metadata to avoid losing data for other templates
+        const currentMetadata = selectedQuestion.metadata || {}
+        const currentMetadataV2 = selectedQuestion.metadata_v2 || {}
+
+        // Handle legacy_sub_frameworks in v2
+        const legacySubFrameworks = currentMetadataV2.legacy_sub_frameworks || []
+
+        const existingSubFrameworks = currentMetadata.sub_frameworks || {}
+
+        // Ensure we handle sub_frameworks as an object map for v1
+        const updatedSubFrameworks =
+          typeof existingSubFrameworks === "object" && !Array.isArray(existingSubFrameworks)
+            ? { ...existingSubFrameworks, [templateId]: newQuestion.metadata.sub_frameworks }
+            : { [templateId]: newQuestion.metadata.sub_frameworks }
+
+        // For v2 sub_frameworks, we also want the object map { templateId: string[] }
+        const existingSubFrameworksV2 = currentMetadataV2.sub_frameworks || {}
+        const updatedSubFrameworksV2 =
+          typeof existingSubFrameworksV2 === "object" && !Array.isArray(existingSubFrameworksV2)
+            ? { ...existingSubFrameworksV2, [templateId]: newQuestion.metadata.sub_frameworks }
+            : { ...updatedSubFrameworks, [templateId]: newQuestion.metadata.sub_frameworks } // Fallback to v1 structure if v2 is empty/weird
+
+        // Standardize on plural 'evidencias' for consistent saving
+        const mergedMetadata = {
+          ...currentMetadata,
+          ...newQuestion.metadata,
+          // Handle both singular/plural to be safe
+          evidencias: newQuestion.metadata.evidencia,
+          obs_nao_aplicavel: newQuestion.metadata.obs,
+          sub_frameworks: updatedSubFrameworks,
+        }
+
+        const mergedMetadataV2 = {
+          ...currentMetadataV2,
+          ...newQuestion.metadata,
+          evidencias: newQuestion.metadata.evidencia,
+          obs_nao_aplicavel: newQuestion.metadata.obs,
+          sub_frameworks: updatedSubFrameworksV2,
+          legacy_sub_frameworks: legacySubFrameworks, // Preserve legacy
+        }
+
+        // Update existing question
+        const { error: updateError } = await supabase
+          .from("book_questions")
+          .update({
+            label: newQuestion.label,
+            type: dbType,
+            metadata: mergedMetadata,
+            metadata_v2: mergedMetadataV2,
+            unique_identifier: uniqueIdentifier,
+          })
+          .eq("id", selectedQuestion.id)
+
+        if (updateError) throw updateError
+
+        await loadQuestions()
+        resetNewQuestion()
+        setShowNewDialog(false)
+        toast.success("Questão atualizada com sucesso!")
+        return
+      }
+
       // Step 1: Create the question in book_questions
+      const initialMetadata = {
+        ...newQuestion.metadata,
+        evidencias: newQuestion.metadata.evidencia,
+        obs_nao_aplicavel: newQuestion.metadata.obs,
+        sub_frameworks: { [templateId]: newQuestion.metadata.sub_frameworks },
+      }
+
+      const initialMetadataV2 = {
+        ...newQuestion.metadata,
+        evidencias: newQuestion.metadata.evidencia,
+        obs_nao_aplicavel: newQuestion.metadata.obs,
+        sub_frameworks: { [templateId]: newQuestion.metadata.sub_frameworks },
+        legacy_sub_frameworks: [],
+      }
+
       const { data: createdQuestion, error: insertError } = await supabase
         .from("book_questions")
         .insert({
           label: newQuestion.label,
-          type: newQuestion.type,
-          metadata: newQuestion.metadata,
-          unique_identifier: uniqueIdentifier, // Added unique_identifier
+          type: dbType,
+          metadata: initialMetadata,
+          metadata_v2: initialMetadataV2,
+          unique_identifier: uniqueIdentifier,
         })
         .select("id")
         .single()
@@ -571,9 +779,9 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
       setShowNewDialog(false)
       toast.success("Questão criada com sucesso!")
     } catch (err: any) {
-      console.error("[v0] Error creating question:", err)
+      console.error("[v0] Error saving question:", err)
       setQuestionError(err.message)
-      toast.error("Erro ao criar questão")
+      toast.error("Erro ao salvar questão")
     } finally {
       setSavingQuestion(false)
     }
@@ -713,7 +921,7 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 sm:p-6">
+    <div className="min-h-screen bg-background px-4 py-6 sm:p-6 pb-32">
       <div className="container mx-auto max-w-7xl space-y-4 sm:space-y-6">
         <Link href="/admin/templates">
           <Button variant="ghost" size="sm" className="gap-2">
@@ -808,11 +1016,10 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
                         {profiles.map((profile) => (
                           <div
                             key={profile.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                              selectedResponsibles.includes(profile.id)
-                                ? "border-emerald-500 bg-emerald-50"
-                                : "border-border hover:bg-muted/50"
-                            }`}
+                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${selectedResponsibles.includes(profile.id)
+                              ? "border-emerald-500 bg-emerald-50"
+                              : "border-border hover:bg-muted/50"
+                              }`}
                             onClick={() => toggleResponsible(profile.id)}
                           >
                             <Checkbox
@@ -950,6 +1157,8 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
                               index={index}
                               startIndex={startIndex}
                               onDelete={openDeleteDialog}
+                              onEdit={handleEditQuestion}
+                              templateId={templateId}
                             />
                           ))}
                         </SortableContext>
@@ -1016,8 +1225,10 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
             <DialogHeader>
-              <DialogTitle>Nova Questão</DialogTitle>
-              <DialogDescription>Crie uma nova questão para este caderno</DialogDescription>
+              <DialogTitle>{isEditingQuestion ? "Editar Questão" : "Nova Questão"}</DialogTitle>
+              <DialogDescription>
+                {isEditingQuestion ? "Atualize os dados da questão" : "Crie uma nova questão para este caderno"}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
               {questionError && (
@@ -1116,7 +1327,7 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Sub-frameworks</Label>
+                  <Label>Frameworks e Sub-frameworks</Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -1167,6 +1378,8 @@ export default function EditTemplatePage({ params }: { params: { templateId: str
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Criando...
                     </>
+                  ) : isEditingQuestion ? (
+                    "Salvar Alterações"
                   ) : (
                     "Criar Questão"
                   )}

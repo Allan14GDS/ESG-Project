@@ -137,13 +137,13 @@ export default async function CadernosGestaoPage() {
 
   const templatesQuery = adminClient.from("book_templates").select("*").order("created_at", { ascending: false })
 
-  let templates
+  let templates: any[] = []
   try {
     const { data, error: templatesError } = await templatesQuery
     if (templatesError) {
       console.error("[v0] Error fetching templates:", templatesError)
     }
-    templates = data
+    templates = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
       console.log("[v0] Templates fetch aborted (navigation cancelled)")
@@ -182,13 +182,13 @@ export default async function CadernosGestaoPage() {
     }
   }
 
-  let users
+  let users: any[] = []
   try {
     const { data, error: usersError } = await usersQuery
     if (usersError) {
       console.error("[v0] Error fetching users:", usersError)
     }
-    users = data
+    users = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
       console.log("[v0] Users fetch aborted (navigation cancelled)")
@@ -219,13 +219,16 @@ export default async function CadernosGestaoPage() {
     assignmentsQuery = assignmentsQuery.in("organization_id", allowedOrgIds)
   }
 
-  let assignments
+  let assignments: any[] = []
   try {
     const { data, error: assignmentsError } = await assignmentsQuery
     if (assignmentsError) {
       console.error("[v0] Error fetching assignments:", assignmentsError)
     }
-    assignments = data
+    assignments = (data || []).map((a: any) => ({
+      ...a,
+      profiles: Array.isArray(a.profiles) ? a.profiles[0] : a.profiles
+    }))
   } catch (error: any) {
     if (error?.name === "AbortError") {
       console.log("[v0] Assignments fetch aborted (navigation cancelled)")
@@ -237,14 +240,14 @@ export default async function CadernosGestaoPage() {
   console.log("[v0] Cadernos Gestao - Assignments count:", assignments?.length || 0)
 
   // Fetch organizations (holdings) and companies
-  let organizations
+  let organizations: any[] = []
   try {
     const { data } = await adminClient
       .from("organizations")
       .select("*")
       .in("id", allowedOrgIds)
       .order("name")
-    organizations = data
+    organizations = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
       return null
@@ -252,14 +255,14 @@ export default async function CadernosGestaoPage() {
     console.error("[v0] Error fetching organizations:", error)
   }
 
-  let companies
+  let companies: any[] = []
   try {
     const { data } = await adminClient
       .from("companies")
       .select("*")
       .in("holding_id", userHoldingIds)
       .order("name")
-    companies = data
+    companies = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
       return null
@@ -268,13 +271,13 @@ export default async function CadernosGestaoPage() {
   }
 
   // Fetch company_templates to know which templates are assigned to which companies
-  let companyTemplates
+  let companyTemplates: any[] = []
   try {
     const { data } = await adminClient
       .from("company_templates")
       .select("*")
       .eq("active", true)
-    companyTemplates = data
+    companyTemplates = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
       return null
@@ -292,28 +295,18 @@ export default async function CadernosGestaoPage() {
 
   if (uniqueTemplateIds.length > 0) {
     try {
-      const questionCountPromises = uniqueTemplateIds.map(async (templateId: string) => {
-        try {
-          const { count, error } = await adminClient
-            .from("book_question_junction")
-            .select("*", { count: "exact", head: true })
-            .eq("book_template_id", templateId)
+      const validTemplateIds = uniqueTemplateIds.filter(Boolean)
+      const { data: counts, error: countsError } = await adminClient
+        .rpc("get_template_question_counts", {
+          p_template_ids: validTemplateIds,
+        })
 
-          if (error) {
-            console.error(`[v0] Error counting questions for template ${templateId}:`, error)
-            return { templateId, count: 0 }
-          }
-
-          return { templateId, count: count || 0 }
-        } catch (error) {
-          console.error(`[v0] Exception counting questions for template ${templateId}:`, error)
-          return { templateId, count: 0 }
-        }
-      })
-
-      const questionCounts = await Promise.all(questionCountPromises)
-      for (const { templateId, count } of questionCounts) {
-        questionCountMap[templateId] = count
+      if (countsError) {
+        console.error("[v0] Error fetching RPC question counts:", countsError)
+      } else if (counts) {
+        counts.forEach((row: any) => {
+          questionCountMap[row.template_id] = Number(row.question_count)
+        })
       }
     } catch (error) {
       console.error("[v0] Exception fetching question counts:", error)
@@ -325,14 +318,14 @@ export default async function CadernosGestaoPage() {
   try {
     if (allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
-      
+
       if (companyIds.length > 0) {
         const { data: counts, error: countsError } = await adminClient
           .rpc("get_gestor_answer_counts", {
             p_company_ids: companyIds,
             p_org_ids: allowedOrgIds
           })
-        
+
         if (countsError) {
           console.error("Error fetching answer counts via RPC:", countsError)
         } else if (counts) {

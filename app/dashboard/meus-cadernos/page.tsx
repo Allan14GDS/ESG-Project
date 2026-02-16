@@ -16,7 +16,7 @@ export const revalidate = 0
 export default async function MeusCadernosPage() {
   // Check for demo mode
   const hasSupabaseConfig = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
@@ -57,26 +57,26 @@ export default async function MeusCadernosPage() {
   }
 
   const assignments = assignmentsData || []
-  
+
   // Check if user is a gestor (has any role that includes 'gestor' or 'admin')
-  const isGestor = profile.role === "holding_admin" || 
-                   profile.role === "company_admin" || 
-                   profile.role === "admin_main" ||
-                   profile.role === "admin"
-  
+  const isGestor = profile.role === "holding_admin" ||
+    profile.role === "company_admin" ||
+    profile.role === "admin_main" ||
+    profile.role === "admin"
+
   // Use RPC to get answer counts (bypasses PostgREST 1000-row limit)
   let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
     const companyIds = [...new Set(assignments.map((a: any) => a.company_id).filter(Boolean))]
     const orgIds = [...new Set(assignments.map((a: any) => a.organization_id).filter(Boolean))]
-    
+
     if (companyIds.length > 0 || orgIds.length > 0) {
       const { data: counts, error: countsError } = await adminClient
         .rpc("get_gestor_answer_counts", {
           p_company_ids: companyIds,
           p_org_ids: orgIds
         })
-      
+
       if (countsError) {
         console.error("Error fetching answer counts via RPC:", countsError)
       } else if (counts) {
@@ -108,7 +108,7 @@ export default async function MeusCadernosPage() {
         .from("book_templates")
         .select("*")
         .in("id", cadernoIds)
-      
+
       if (templatesError) {
         console.error("[v0] Error fetching templates:", templatesError)
       }
@@ -120,7 +120,7 @@ export default async function MeusCadernosPage() {
           .from("organizations")
           .select("*")
           .in("id", orgIds)
-        
+
         if (orgsError) {
           console.error("[v0] Error fetching organizations:", orgsError)
         }
@@ -131,7 +131,7 @@ export default async function MeusCadernosPage() {
           .from("companies")
           .select("*")
           .in("holding_id", orgIds)
-        
+
         if (companiesError) {
           console.error("[v0] Error fetching companies:", companiesError)
         }
@@ -212,32 +212,24 @@ export default async function MeusCadernosPage() {
 
   // Fetch question counts for all templates
   const questionCountMap = new Map<string, number>()
-  
-  try {
-    const questionCountPromises = uniqueTemplateIds.map(async (templateId) => {
-      try {
-        const { count, error } = await adminClient
-          .from("book_question_junction")
-          .select("*", { count: "exact", head: true })
-          .eq("book_template_id", templateId)
-        
-        if (error) {
-          console.error(`[v0] Error counting questions for template ${templateId}:`, error)
-          return { templateId, count: 0 }
-        }
-        
-        return { templateId, count: count || 0 }
-      } catch (error) {
-        console.error(`[v0] Exception counting questions for template ${templateId}:`, error)
-        return { templateId, count: 0 }
-      }
-    })
 
-    const questionCounts = await Promise.all(questionCountPromises)
-    
-    // Populate the map
-    for (const { templateId, count } of questionCounts) {
-      questionCountMap.set(templateId, count)
+  try {
+    const validTemplateIds = uniqueTemplateIds.filter(Boolean)
+    if (validTemplateIds.length > 0) {
+      // Optimized bulk fetch - Fetch all junctions for these templates and count them in memory
+      // This is much faster than sequential requests for each template
+      const { data: counts, error: countsError } = await adminClient
+        .rpc("get_template_question_counts", {
+          p_template_ids: validTemplateIds,
+        })
+
+      if (countsError) {
+        console.error("[v0] Error fetching RPC question counts:", countsError)
+      } else if (counts) {
+        counts.forEach((row: any) => {
+          questionCountMap.set(row.template_id, Number(row.question_count))
+        })
+      }
     }
   } catch (error) {
     console.error("[v0] Exception fetching question counts:", error)
@@ -281,18 +273,18 @@ export default async function MeusCadernosPage() {
 
     const companiesWithCadernos = companiesInHolding.map((company) => {
       // Filter cadernos that are assigned to this specific company
-      const companyCadernos = cadernos.filter((caderno) => 
+      const companyCadernos = cadernos.filter((caderno) =>
         caderno.company_id === company.id
       )
-      
+
       // For holding-level cadernos, create company-specific instances with correct answer counts
       const holdingCadernosForCompany = directCadernos.map((holdingCaderno) => {
         const questionCount = questionCountMap.get(holdingCaderno.id) || 0
-        
+
         // Get count from RPC result for this company
         const countKey = `${holdingCaderno.id}_${company.id}`
         const answeredCount = answerCountsMap.get(countKey) || 0
-        
+
         let status: "pending" | "in_progress" | "completed" = "pending"
         if (answeredCount === 0) {
           status = "pending"
@@ -301,7 +293,7 @@ export default async function MeusCadernosPage() {
         } else {
           status = "in_progress"
         }
-        
+
         return {
           ...holdingCaderno,
           company_id: company.id, // Override with company ID
@@ -311,7 +303,7 @@ export default async function MeusCadernosPage() {
           status: status,
         }
       })
-      
+
       const cadernosForCompany = [...companyCadernos, ...holdingCadernosForCompany]
 
       return {

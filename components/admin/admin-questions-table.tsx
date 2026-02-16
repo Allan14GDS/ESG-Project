@@ -68,7 +68,9 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
 
   const filteredQuestions = sortedQuestions.filter((question) => {
     const label = question.label?.toLowerCase() || ""
-    const disclosure = question.metadata?.disclosure?.toLowerCase() || ""
+    const metadataV2 = (question as any).metadata_v2 || {}
+    const meta = metadataV2.disclosure ? metadataV2 : (question.metadata || {})
+    const disclosure = (meta.disclosure || meta.framework_1 || meta.sub_framework_1 || "").toLowerCase()
     const search = searchTerm.toLowerCase()
     return label.includes(search) || disclosure.includes(search)
   })
@@ -162,6 +164,7 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                     <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Linha de Coleta</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Tipo</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Disclosure</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Frameworks</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">
                       Cadernos Atribuídos
                     </th>
@@ -171,10 +174,44 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                 <tbody className="divide-y divide-border/50">
                   {paginatedQuestions.map((question) => {
                     const metadata = question.metadata || {}
-                    const disclosure = metadata.disclosure || ""
-                    const evidencias = metadata.evidencias || ""
-                    const obs = metadata.obs || ""
-                    const sub_frameworks = metadata.sub_frameworks || []
+                    // Prioritize metadata_v2 if available (casted to any since not in interface yet)
+                    const metadataV2 = (question as any).metadata_v2 || {}
+                    const meta = metadataV2.disclosure ? metadataV2 : (question.metadata || {})
+
+                    const disclosure = meta.disclosure || meta.framework_1 || meta.sub_framework_1 || ""
+                    const evidencias = meta.evidencias || meta.evidencia || ""
+                    const obs = meta.obs || meta.obs_nao_aplicavel || ""
+
+                    // Robust sub_frameworks extraction for the edit dialog
+                    let sub_frameworks = meta.sub_frameworks || meta.legacy_sub_frameworks || []
+                    if (!Array.isArray(sub_frameworks)) {
+                      sub_frameworks = []
+                    }
+                    if (sub_frameworks.length === 0 && (meta.framework_1 || meta.sub_framework_1)) {
+                      sub_frameworks = [
+                        { framework: meta.framework_1 || "", subFramework: meta.sub_framework_1 || "" },
+                        ...(meta.framework_2 || meta.sub_framework_2 ? [{ framework: meta.framework_2 || "", subFramework: meta.sub_framework_2 || "" }] : [])
+                      ]
+                    }
+
+                    // Map English types to Portuguese labels
+                    const typeMapping: { [key: string]: string } = {
+                      text: "texto",
+                      string: "texto",
+                      number: "numero",
+                      percentage: "porcentagem",
+                      date: "data",
+                      file: "arquivo",
+                      multiple_choice: "multipla_escolha",
+                      yes_no: "sim_nao",
+                    }
+                    const displayType = typeMapping[question.type] || question.type || "texto"
+
+                    // Frameworks for display
+                    const f1 = meta.framework_1 || ""
+                    const sf1 = meta.sub_framework_1 || ""
+                    const f2 = meta.framework_2 || ""
+                    const sf2 = meta.sub_framework_2 || ""
 
                     return (
                       <tr key={question.id} className="group hover:bg-muted/20">
@@ -187,11 +224,26 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                         </td>
                         <td className="px-6 py-4">
                           <Badge variant="outline" className="capitalize">
-                            {question.type || "N/A"}
+                            {displayType}
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-sm text-muted-foreground">{disclosure || "-"}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            {f1 && (
+                              <Badge variant="secondary" className="text-xs w-fit">
+                                {f1} {sf1 ? `- ${sf1}` : ""}
+                              </Badge>
+                            )}
+                            {f2 && (
+                              <Badge variant="secondary" className="text-xs w-fit">
+                                {f2} {sf2 ? `- ${sf2}` : ""}
+                              </Badge>
+                            )}
+                            {!f1 && !f2 && <span className="text-xs text-muted-foreground">-</span>}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-1.5">
@@ -236,7 +288,7 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                                 id: question.id,
                                 linha_coleta: question.label || "",
                                 disclosure: disclosure,
-                                tipo_resposta: question.type || "",
+                                tipo_resposta: displayType, // Pass normalized type
                                 evidencias: evidencias,
                                 obs_nao_aplicavel: obs,
                                 sub_frameworks: sub_frameworks,

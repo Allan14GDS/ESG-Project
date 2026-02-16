@@ -1,0 +1,162 @@
+[
+  {
+    "id": "517e51c8-7c48-438b-8d2e-c8c5602a7b1f",
+    "created_at": "2026-02-15T07:14:36.64715+00:00",
+    "label": "A organização deve informar se reapresentou (corrigiu, revisou ou reclassificou) informações publicadas em relatórios anteriores.\n\nSe sim, deve explicar:\n\nQual informação foi reapresentada\n(ex:  receita, indicadores de segurança, etc.)\n\nPor que foi reapresentada\n(ex.: erro identificado, mudança metodológica, alteração de escopo, nova consolidação societária, mudança regulatória, etc.)\n\nQual o impacto da reapresentação\n(ex.: alteração de valores absolutos, percentuais, metas ou séries históricas)",
+    "type": "text",
+    "metadata": {
+      "obs": "Os disclosures do GRI 2 (Bases Gerais e de Governança) não admitem a classificação “não aplicável”, porque esse caderno é o núcleo obrigatório do sistema GRI 2021.",
+      "disclosure": "",
+      "evidencias": "",
+      "framework_1": "teste",
+      "framework_2": "",
+      "sub_framework": "",
+      "sub_frameworks": {
+        "0143a856-d789-48b1-91f5-3152549b39da": [
+          "-"
+        ]
+      },
+      "sub_framework_1": "-",
+      "sub_framework_2": ""
+    },
+    "updated_at": "2026-02-15T07:14:36.64715+00:00",
+    "unique_identifier": "a_organizacao_deve_informar_se_reapresentou_corrigiu_revisou_ou_reclassificou_informacoes_publicadas",
+    "metadata_v2": {
+      "obs": "Os disclosures do GRI 2 (Bases Gerais e de Governança) não admitem a classificação “não aplicável”, porque esse caderno é o núcleo obrigatório do sistema GRI 2021.",
+      "disclosure": "",
+      "evidencias": "",
+      "framework_1": "teste",
+      "framework_2": "",
+      "sub_framework_1": "-",
+      "sub_framework_2": "",
+      "legacy_sub_frameworks": {
+        "0143a856-d789-48b1-91f5-3152549b39da": [
+          "-"
+        ]
+      }
+    }
+  },
+  {
+    "id": "ae333059-aff3-4065-9ff0-ba49d228f06f",
+    "created_at": "2026-02-10T23:25:16.3649+00:00",
+    "label": "Frequência de reporte público de informações fiscais (anual, semestral, contínuo) - REGULATÓRIO",
+    "type": "text",
+    "metadata": {
+      "obs": "Não aplicável apenas se não houver reporte público de tributos por política institucional.",
+      "disclosure": "",
+      "evidencias": "Relatórios de sustentabilidade; website corporativo",
+      "sub_frameworks": [
+        {
+          "framework": "GRI (teste)",
+          "subFramework": "301 (teste)"
+        },
+        {
+          "framework": "ANEEL (teste)",
+          "subFramework": "207 (teste)"
+        }
+      ]
+    },
+    "updated_at": "2026-02-15T06:34:16.703+00:00",
+    "unique_identifier": "frequencia_de_reporte_publico_de_informacoes_fiscais_anual_semestral_continuo_regulatorio",
+    "metadata_v2": {
+      "obs": "Não aplicável apenas se não houver reporte público de tributos por política institucional.",
+      "disclosure": "",
+      "evidencias": "Relatórios de sustentabilidade; website corporativo",
+      "framework_1": "GRI (teste)",
+      "framework_2": "ANEEL (teste)",
+      "sub_framework_1": "301 (teste)",
+      "sub_framework_2": "207 (teste)",
+      "legacy_sub_frameworks": [
+        {
+          "framework": "GRI (teste)",
+          "subFramework": "301 (teste)"
+        },
+        {
+          "framework": "ANEEL (teste)",
+          "subFramework": "207 (teste)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "7215fdf2-deef-4806-9a52-02751f411717",
+    "created_at": "2026-02-10T23:25:15.630716+00:00",
+    "label": "Receita total Brasil (base para reconciliação regulatória) - REGULATÓRIO",
+    "type": "number",
+    "metadata": {
+      "obs": "Não aplicável apenas se a organização não possuir operação territorial. Sem países no período: “0”.",
+      "disclosure": "",
+      "evidencias": "Planilhas de consolidação; relatórios financeiros",
+      "sub_framework": "",
+      "sub_frameworks": {}
+    },
+    "updated_at": "2026-02-10T23:25:15.630716+00:00",
+    "unique_identifier": "receita_total_brasil_base_para_reconciliacao_regulatoria_regulatorio",
+    "metadata_v2": {
+      "obs": "Não aplicável apenas se a organização não possuir operação territorial. Sem países no período: “0”.",
+      "disclosure": "",
+      "evidencias": "Planilhas de consolidação; relatórios financeiros",
+      "framework_1": "",
+      "framework_2": "",
+      "framework_3": "",
+      "sub_framework_1": "",
+      "sub_framework_2": "",
+      "sub_framework_3": "",
+      "legacy_sub_frameworks": {}
+    }
+  },
+  {
+    "id": "5e2f30e6-ff9e-4688-b021-78e2d00095f4",
+    "created_at": "2026-02-10T23:25:14.821592+00:00",
+    "label": "Tributos retidos e recolhidos em nome de terceiros - REGULATÓRIO",
+    "type": "currency",
+    "metadata": {
+      "obs": "Não aplicável apenas se a organização não possuir empregados, fornecedores ou pagamentos sujeitos à retenção.",
+      "disclosure": "",
+      "evidencias": "Guias fiscais; relatórios de retenção",
+      "sub_framework": "",
+      "sub_frameworks": {}
+    },
+    "updated_at": "2026-02-10T23:25:14.821592+00:00",
+    "unique_identifier": "tributos_retidos_e_recolhidos_em_nome_de_terceiros_regulatorio",
+    "metadata_v2": {
+      "obs": "Não aplicável apenas se a organização não possuir empregados, fornecedores ou pagamentos sujeitos à retenção.",
+      "disclosure": "",
+      "evidencias": "Guias fiscais; relatórios de retenção",
+      "framework_1": "",
+      "framework_2": "",
+      "framework_3": "",
+      "sub_framework_1": "",
+      "sub_framework_2": "",
+      "sub_framework_3": "",
+      "legacy_sub_frameworks": {}
+    }
+  },
+  {
+    "id": "30f58684-9516-4781-818c-f552b549e8e5",
+    "created_at": "2026-02-10T23:25:13.99192+00:00",
+    "label": "Tributos pagos por país/jurisdição (corrente) - REGULATÓRIO",
+    "type": "currency",
+    "metadata": {
+      "obs": "Não aplicável apenas se não houver tributos devidos ou isenções legais integrais. Se não houver pagamento, “0”.",
+      "disclosure": "",
+      "evidencias": "DRE; comprovantes fiscais; notas contábeis",
+      "sub_framework": "",
+      "sub_frameworks": {}
+    },
+    "updated_at": "2026-02-10T23:25:13.99192+00:00",
+    "unique_identifier": "tributos_pagos_por_paisjurisdicao_corrente_regulatorio",
+    "metadata_v2": {
+      "obs": "Não aplicável apenas se não houver tributos devidos ou isenções legais integrais. Se não houver pagamento, “0”.",
+      "disclosure": "",
+      "evidencias": "DRE; comprovantes fiscais; notas contábeis",
+      "framework_1": "",
+      "framework_2": "",
+      "framework_3": "",
+      "sub_framework_1": "",
+      "sub_framework_2": "",
+      "sub_framework_3": "",
+      "legacy_sub_frameworks": {}
+    }
+  }
+]

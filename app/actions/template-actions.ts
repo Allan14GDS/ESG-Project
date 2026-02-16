@@ -349,6 +349,11 @@ export async function createAndLinkQuestion({
   tipo_resposta,
   evidencias,
   obs_nao_aplicavel,
+  // New fields for V2
+  framework_1,
+  sub_framework_1,
+  framework_2,
+  sub_framework_2,
 }: {
   bookTemplateId: string
   frameworks: object[]
@@ -357,6 +362,10 @@ export async function createAndLinkQuestion({
   tipo_resposta: string
   evidencias?: string
   obs_nao_aplicavel?: string
+  framework_1?: string
+  sub_framework_1?: string
+  framework_2?: string
+  sub_framework_2?: string
 }) {
   try {
     const supabase = await createClient()
@@ -366,46 +375,90 @@ export async function createAndLinkQuestion({
 
     const adminClient = createAdminClient()
 
-    const { data: question, error: questionError } = await adminClient
-      .from("master_questions")
-      .insert({
-        frameworks,
-        disclosure,
-        linha_coleta,
-        tipo_resposta,
-        evidencias,
-        obs_nao_aplicavel,
-        created_by: user?.id,
-      })
-      .select()
-      .single()
+    // Generate unique identifier
+    const uniqueIdentifier = linha_coleta
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[^a-z0-9\s]/g, "") // Remove special chars
+      .trim()
+      .replace(/\s+/g, "_") // Replace spaces with underscore
+      .substring(0, 100)
 
-    if (questionError) {
-      return { success: false, error: `Failed to create question: ${questionError.message}` }
+    // Check if exists in book_questions
+    const { data: existingQuestion } = await adminClient
+      .from("book_questions")
+      .select("id")
+      .eq("unique_identifier", uniqueIdentifier)
+      .maybeSingle()
+
+    let questionId: string
+
+    if (existingQuestion) {
+      questionId = existingQuestion.id
+    } else {
+      // Create new in book_questions
+      const metadataV2 = {
+        disclosure: disclosure || "",
+        evidencias: evidencias || "",
+        obs: obs_nao_aplicavel || "",
+        framework_1: framework_1 || "",
+        sub_framework_1: sub_framework_1 || "",
+        framework_2: framework_2 || "",
+        sub_framework_2: sub_framework_2 || "",
+        legacy_sub_frameworks: {},
+      }
+
+      const { data: newQuestion, error: createError } = await adminClient
+        .from("book_questions")
+        .insert({
+          label: linha_coleta,
+          type: tipo_resposta,
+          unique_identifier: uniqueIdentifier,
+          metadata: {
+            disclosure,
+            evidencias,
+            obs: obs_nao_aplicavel,
+            frameworks // Kept for legacy compatibility if needed
+          },
+          metadata_v2: metadataV2,
+          created_by: user?.id,
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        return { success: false, error: `Failed to create question: ${createError.message}` }
+      }
+      questionId = newQuestion.id
     }
 
+    // Link to template
     const { data: lastQuestion } = await adminClient
       .from("book_question_junction")
       .select("sort_order")
       .eq("book_template_id", bookTemplateId)
       .order("sort_order", { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     const sortOrder = lastQuestion ? lastQuestion.sort_order + 1 : 1
 
     const { error: linkError } = await adminClient.from("book_question_junction").insert({
       book_template_id: bookTemplateId,
-      question_template_id: question.id,
+      question_template_id: questionId,
       sort_order: sortOrder,
     })
 
     if (linkError) {
-      await adminClient.from("master_questions").delete().eq("id", question.id)
+      // If unique constraint violation (already linked), just return success
+      if (linkError.code === '23505') {
+        return { success: true, data: { id: questionId } }
+      }
       return { success: false, error: `Failed to link question: ${linkError.message}` }
     }
 
-    return { success: true, data: question }
+    return { success: true, data: { id: questionId } }
   } catch (error: any) {
     return { success: false, error: error.message || "Unknown error occurred" }
   }
@@ -490,18 +543,34 @@ export async function addQuestionToTemplate({
   questionText,
   questionType,
   sortOrder,
+  metadata,
 }: {
   templateId: string
   questionText: string
   questionType: string
   sortOrder: number
+  metadata?: {
+    disclosure?: string
+    evidencia?: string
+    obs?: string
+    framework_1?: string
+    sub_framework_1?: string
+    framework_2?: string
+    sub_framework_2?: string
+  }
 }) {
   return createAndLinkQuestion({
     bookTemplateId: templateId,
     frameworks: [],
-    disclosure: "",
+    disclosure: metadata?.disclosure || "",
     linha_coleta: questionText,
     tipo_resposta: questionType,
+    evidencias: metadata?.evidencia,
+    obs_nao_aplicavel: metadata?.obs,
+    framework_1: metadata?.framework_1,
+    sub_framework_1: metadata?.sub_framework_1,
+    framework_2: metadata?.framework_2,
+    sub_framework_2: metadata?.sub_framework_2,
   })
 }
 

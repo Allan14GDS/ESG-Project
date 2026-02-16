@@ -165,6 +165,7 @@ export async function deleteUser(userId: string) {
     }
 
     revalidatePath("/admin/users")
+    revalidatePath("/dashboard/users")
 
     return {
       success: true,

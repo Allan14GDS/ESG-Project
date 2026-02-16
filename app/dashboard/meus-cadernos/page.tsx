@@ -365,12 +365,18 @@ export default async function MeusCadernosPage() {
 
 
 
-  const totalCadernos = cadernos.length
-  const completedCadernos = cadernos.filter((c) => c.status === "completed").length
-  const inProgressCadernos = cadernos.filter((c) => c.status === "in_progress").length
-  const pendingCadernos = cadernos.filter((c) => c.status === "pending").length
-  const totalNeedsCorrection = cadernos.reduce((sum, c) => sum + c.needsCorrection, 0)
-  const cadernosWithCorrections = cadernos.filter((c) => c.needsCorrection > 0)
+  // Calculate totals from allHoldingsAndOrgs to include all company-level cadernos
+  // (including holding-level cadernos expanded per company)
+  const totalCadernos = allHoldingsAndOrgs.reduce((sum, h) => sum + h.totalCadernos, 0)
+  const completedCadernos = allHoldingsAndOrgs.reduce((sum, h) => sum + h.completedCadernos, 0)
+  const inProgressCadernos = allHoldingsAndOrgs.reduce((sum, h) => sum + h.inProgressCadernos, 0)
+  const pendingCadernos = allHoldingsAndOrgs.reduce((sum, h) => sum + h.pendingCadernos, 0)
+  const totalNeedsCorrection = allHoldingsAndOrgs.reduce((sum, h) => sum + h.needsCorrection, 0)
+  const allCadernosFlat = allHoldingsAndOrgs.flatMap((h) => [
+    ...h.companies.flatMap((c: any) => c.cadernos),
+    ...(h.directCadernos || []),
+  ])
+  const cadernosWithCorrections = allCadernosFlat.filter((c: any) => c.needsCorrection > 0)
 
   return (
     <div className="min-h-screen bg-background">

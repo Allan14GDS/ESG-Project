@@ -78,18 +78,18 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === "/" && user) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin") {
+    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     } else {
       return NextResponse.redirect(new URL("/dashboard/meus-cadernos", request.url))
     }
   }
 
-  // Block admins from accessing /dashboard routes
+  // Block admins and gestors from accessing /dashboard routes (they use /admin)
   if (request.nextUrl.pathname.startsWith("/dashboard") && user) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin") {
+    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     }
     return supabaseResponse
@@ -117,7 +117,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin") {
+    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     } else {
       return NextResponse.redirect(new URL("/dashboard/meus-cadernos", request.url))

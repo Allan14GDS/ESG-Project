@@ -190,6 +190,14 @@ const gestorNavigation = [
     description: "Gestão de cadernos e questões",
     items: [
       {
+        title: "Dashboard",
+        url: "/admin",
+        icon: BarChart3,
+        description: "Visão geral de empresas e usuários",
+        progress: 0,
+        status: "active",
+      },
+      {
         title: "Meus Cadernos",
         url: "/dashboard/meus-cadernos",
         icon: BookOpen,
@@ -243,17 +251,23 @@ const gestorNavigation = [
 
 const adminNavigation = [
   {
-    title: "Central de Comando",
-    description: "Acesso administrativo completo",
+    title: "Dashboard",
+    description: "Métricas e visão geral",
     items: [
       {
-        title: "Dashboard Admin",
+        title: "Dashboard",
         url: "/admin",
-        icon: Settings,
-        description: "Painel administrativo principal",
+        icon: BarChart3,
+        description: "Métricas e indicadores do sistema",
         progress: 0,
         status: "active",
       },
+    ],
+  },
+  {
+    title: "Central de Comando",
+    description: "Acesso administrativo completo",
+    items: [
       {
         title: "Holdings",
         url: "/admin/holdings",

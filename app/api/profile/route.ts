@@ -74,6 +74,8 @@ export async function GET() {
       role: profile?.role || "user",
       full_name: profile?.full_name || user.email?.split("@")[0],
       is_active: profile?.is_active ?? true,
+    }, {
+      headers: { "Cache-Control": "no-store" },
     })
   } catch (error: any) {
     console.error("[v0] API route error:", error.message)

@@ -1,142 +1,298 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { CommandCenterButton } from "@/components/command-center-button"
-import { Users, BookOpen, HelpCircle, Building2 } from "lucide-react"
-import Link from "next/link"
-import { requireAdmin } from "@/lib/auth-utils"
+import { requireGestor } from "@/lib/auth-utils"
+import { AdminDashboardClient } from "@/components/admin/admin-dashboard-client"
+import { GestorDashboardClient } from "@/components/gestor/gestor-dashboard-client"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function AdminPanelPage() {
-  await requireAdmin()
+  // Allow both admin_main and holding_admin
+  const profile = await requireGestor()
+  const isAdmin = profile.role === "admin_main"
 
   const adminClient = createAdminClient()
 
-  // Fetch all stats in parallel using admin client
-  const [templatesRes, questionsRes, usersRes] = await Promise.all([
-    adminClient.from("book_templates").select("id", { count: "exact", head: true }),
-    adminClient.from("book_questions").select("id", { count: "exact", head: true }),
-    adminClient.from("profiles").select("id", { count: "exact", head: true }),
-  ])
+  if (isAdmin) {
+    // ===== ADMIN: Global data =====
+    const [templatesRes, questionsRes, usersRes, answersRes] = await Promise.all([
+      adminClient.from("book_templates").select("id", { count: "exact", head: true }),
+      adminClient.from("book_questions").select("id", { count: "exact", head: true }),
+      adminClient.from("profiles").select("id", { count: "exact", head: true }),
+      adminClient.from("book_answers").select("id", { count: "exact", head: true }),
+    ])
 
-  const stats = {
-    totalTemplates: templatesRes.count || 0,
-    totalQuestions: questionsRes.count || 0,
-    totalUsers: usersRes.count || 0,
+    const totalTemplates = templatesRes.count || 0
+    const totalQuestions = questionsRes.count || 0
+    const totalUsers = usersRes.count || 0
+    const totalAnswers = answersRes.count || 0
+
+    const { data: holdingsData } = await adminClient
+      .from("organizations").select("id, name").eq("type", "holding").order("name")
+    const holdings = (holdingsData || []).map((h: any) => ({ id: h.id, name: h.name }))
+
+    const { data: companiesData } = await adminClient
+      .from("companies").select("id, name, holding_id").order("name")
+    const companies = (companiesData || []).map((c: any) => ({
+      id: c.id, name: c.name, holding_id: c.holding_id,
+    }))
+
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const { data: recentAnswers } = await adminClient
+      .from("book_answers")
+      .select("created_at, company_id")
+      .gte("created_at", thirtyDaysAgo.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(5000)
+
+    const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
+      date: a.created_at?.split("T")[0] || "",
+      company_id: a.company_id,
+    }))
+
+    const { data: assignmentsData } = await adminClient
+      .from("book_assignments")
+      .select("caderno_id, company_id")
+      .not("company_id", "is", null)
+      .limit(10000)
+
+    const templateIds = [...new Set((assignmentsData || []).map((a: any) => a.caderno_id).filter(Boolean))]
+    const questionCountMap = new Map<string, number>()
+    if (templateIds.length > 0) {
+      const { data: questionCounts } = await adminClient
+        .rpc("get_template_question_counts", { p_template_ids: templateIds })
+      if (questionCounts) {
+        for (const row of questionCounts) {
+          questionCountMap.set(row.template_id, Number(row.question_count))
+        }
+      }
+    }
+
+    const companyTemplates = new Map<string, Set<string>>()
+    for (const assignment of assignmentsData || []) {
+      const compId = assignment.company_id
+      const templateId = assignment.caderno_id
+      if (!compId || !templateId) continue
+      if (!companyTemplates.has(compId)) companyTemplates.set(compId, new Set())
+      companyTemplates.get(compId)!.add(templateId)
+    }
+
+    const allCompanyIds = [...new Set((assignmentsData || []).map((a: any) => a.company_id).filter(Boolean))]
+    const allOrgIds = [...new Set(companies.map((c) => c.holding_id).filter(Boolean))]
+    const answerCountsMap = new Map<string, number>()
+
+    if (allCompanyIds.length > 0 || allOrgIds.length > 0) {
+      const { data: answerCounts } = await adminClient
+        .rpc("get_gestor_answer_counts", { p_company_ids: allCompanyIds, p_org_ids: allOrgIds })
+      if (answerCounts) {
+        for (const row of answerCounts) {
+          answerCountsMap.set(`${row.template_id}_${row.company_id}`, Number(row.answered_count))
+        }
+      }
+    }
+
+    const answerCountsEntries = Array.from(answerCountsMap.entries()) as [string, number][]
+    const questionCountEntries = Array.from(questionCountMap.entries()) as [string, number][]
+    const companyTemplatesEntries = Array.from(companyTemplates.entries()).map(
+      ([compId, templateSet]) => [compId, Array.from(templateSet)] as [string, string[]]
+    )
+
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="mt-2 text-muted-foreground">
+              Painel administrativo do sistema GRI ESG
+            </p>
+          </div>
+          <AdminDashboardClient
+            holdings={holdings}
+            companies={companies}
+            answerCountsEntries={answerCountsEntries}
+            questionCountEntries={questionCountEntries}
+            companyTemplatesEntries={companyTemplatesEntries}
+            recentAnswersWithCompany={recentAnswersWithCompany}
+            totalTemplates={totalTemplates}
+            totalQuestions={totalQuestions}
+            totalUsers={totalUsers}
+            totalAnswers={totalAnswers}
+          />
+        </div>
+      </div>
+    )
   }
 
-  const quickActions = [
-    {
-      label: "Gerenciar Cadernos",
-      href: "/admin/templates",
-      icon: BookOpen,
-      description: "Criar e gerenciar templates de cadernos",
-    },
-    {
-      label: "Gerenciar Questões",
-      href: "/admin/questions",
-      icon: HelpCircle,
-      description: "Gerenciar questões e suas atribuições",
-    },
-    {
-      label: "Gerenciar Usuários",
-      href: "/admin/users",
-      icon: Users,
-      description: "Convidar e gerenciar usuários",
-    },
-    {
-      label: "Gerenciar Organizações",
-      href: "/admin/holdings",
-      icon: Building2,
-      description: "Gerenciar holdings e empresas",
-    },
-  ]
+  // ===== GESTOR: Scoped data =====
+  const { data: memberships } = await adminClient
+    .from("organization_members").select("organization_id").eq("user_id", profile.id)
+
+  const holdingIds = [...new Set((memberships || []).map((m: any) => m.organization_id).filter(Boolean))]
+
+  const { data: holdingsData } = await adminClient
+    .from("organizations").select("id, name")
+    .in("id", holdingIds.length > 0 ? holdingIds : ["__none__"])
+    .eq("type", "holding").order("name")
+  const holdings = (holdingsData || []).map((h: any) => ({ id: h.id, name: h.name }))
+
+  const { data: companiesData } = await adminClient
+    .from("companies").select("id, name, holding_id")
+    .in("holding_id", holdingIds.length > 0 ? holdingIds : ["__none__"])
+    .order("name")
+  const companies = (companiesData || []).map((c: any) => ({
+    id: c.id, name: c.name, holding_id: c.holding_id,
+  }))
+  const companyIds = companies.map((c) => c.id)
+
+  const { data: assignmentsData } = await adminClient
+    .from("book_assignments").select("caderno_id, company_id, user_id")
+    .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
+    .limit(10000)
+  const assignments = assignmentsData || []
+
+  const templateIds = [...new Set(assignments.map((a: any) => a.caderno_id).filter(Boolean))]
+  const questionCountMap = new Map<string, number>()
+  if (templateIds.length > 0) {
+    const { data: questionCounts } = await adminClient
+      .rpc("get_template_question_counts", { p_template_ids: templateIds })
+    if (questionCounts) {
+      for (const row of questionCounts) {
+        questionCountMap.set(row.template_id, Number(row.question_count))
+      }
+    }
+  }
+
+  const answerCountsMap = new Map<string, number>()
+  if (companyIds.length > 0 || holdingIds.length > 0) {
+    const { data: answerCounts } = await adminClient
+      .rpc("get_gestor_answer_counts", { p_company_ids: companyIds, p_org_ids: holdingIds })
+    if (answerCounts) {
+      for (const row of answerCounts) {
+        answerCountsMap.set(`${row.template_id}_${row.company_id}`, Number(row.answered_count))
+      }
+    }
+  }
+
+  const companyTemplates = new Map<string, Set<string>>()
+  for (const assignment of assignments) {
+    const compId = assignment.company_id
+    const templateId = assignment.caderno_id
+    if (!compId || !templateId) continue
+    if (!companyTemplates.has(compId)) companyTemplates.set(compId, new Set())
+    companyTemplates.get(compId)!.add(templateId)
+  }
+
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  const { data: recentAnswers } = await adminClient
+    .from("book_answers").select("created_at, company_id")
+    .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
+    .gte("created_at", thirtyDaysAgo.toISOString())
+    .order("created_at", { ascending: true })
+    .limit(5000)
+
+  const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
+    date: a.created_at?.split("T")[0] || "",
+    company_id: a.company_id,
+  }))
+
+  // Per-user progress
+  const userIds = [...new Set(assignments.map((a: any) => a.user_id).filter(Boolean))]
+
+  const { data: userProfiles } = await adminClient
+    .from("profiles").select("id, full_name, email, role")
+    .in("id", userIds.length > 0 ? userIds : ["__none__"])
+
+  const profilesMap = new Map<string, { full_name: string; email: string; role: string }>()
+  for (const p of userProfiles || []) {
+    profilesMap.set(p.id, { full_name: p.full_name || "", email: p.email || "", role: p.role || "user" })
+  }
+
+  const userAnswerCounts = new Map<string, number>()
+  if (userIds.length > 0 && companyIds.length > 0) {
+    const { data: rawAnswers } = await adminClient
+      .from("book_answers").select("user_id, company_id, question_id")
+      .in("company_id", companyIds).in("user_id", userIds).limit(10000)
+
+    if (rawAnswers) {
+      const distinctSets = new Map<string, Set<string>>()
+      for (const row of rawAnswers) {
+        const key = `${row.user_id}_${row.company_id}`
+        if (!distinctSets.has(key)) distinctSets.set(key, new Set())
+        distinctSets.get(key)!.add(row.question_id)
+      }
+      for (const [key, questionSet] of distinctSets) {
+        userAnswerCounts.set(key, questionSet.size)
+      }
+    }
+  }
+
+  const userAssignments = new Map<string, Set<string>>()
+  for (const a of assignments) {
+    if (!a.user_id || !a.company_id) continue
+    if (!userAssignments.has(a.user_id)) userAssignments.set(a.user_id, new Set())
+    userAssignments.get(a.user_id)!.add(a.company_id)
+  }
+
+  const companyNameMap = new Map(companies.map((c) => [c.id, c.name]))
+  const userProgressEntries: {
+    userId: string; userName: string; userEmail: string
+    companyId: string; companyName: string; answered: number; total: number
+  }[] = []
+
+  for (const [userId, companySet] of userAssignments) {
+    const userProfile = profilesMap.get(userId)
+    if (!userProfile) continue
+    if (userId === profile.id) continue
+
+    for (const companyId of companySet) {
+      const templates = companyTemplates.get(companyId)
+      if (!templates || templates.size === 0) continue
+      let totalQ = 0
+      for (const tid of templates) totalQ += questionCountMap.get(tid) || 0
+      if (totalQ === 0) continue
+
+      const answered = userAnswerCounts.get(`${userId}_${companyId}`) || 0
+      userProgressEntries.push({
+        userId, userName: userProfile.full_name || userProfile.email?.split("@")[0] || "Sem nome",
+        userEmail: userProfile.email, companyId, companyName: companyNameMap.get(companyId) || "",
+        answered: Math.min(answered, totalQ), total: totalQ,
+      })
+    }
+  }
+
+  const totalUsers = userIds.length
+  const totalAnswers = [...answerCountsMap.values()].reduce((sum, v) => sum + v, 0)
+
+  const answerCountsEntries = Array.from(answerCountsMap.entries()) as [string, number][]
+  const questionCountEntries = Array.from(questionCountMap.entries()) as [string, number][]
+  const companyTemplatesEntries = Array.from(companyTemplates.entries()).map(
+    ([compId, templateSet]) => [compId, Array.from(templateSet)] as [string, string[]]
+  )
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Central de Comando</h1>
-            <p className="mt-2 text-muted-foreground">Painel administrativo do sistema GRI ESG</p>
-          </div>
-          <CommandCenterButton userRole="admin_main" />
+      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="mt-2 text-muted-foreground">
+            Acompanhe o progresso das empresas e usuarios sob sua gestao
+          </p>
         </div>
-
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
-          <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total de Cadernos</p>
-                  <p className="mt-2 text-3xl font-bold">{stats.totalTemplates}</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total de Questões</p>
-                  <p className="mt-2 text-3xl font-bold">{stats.totalQuestions}</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                  <HelpCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total de Usuários</p>
-                  <p className="mt-2 text-3xl font-bold">{stats.totalUsers}</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div>
-          <h2 className="mb-6 text-xl font-semibold">Ações Rápidas</h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {quickActions.map((action) => {
-              const Icon = action.icon
-              return (
-                <Link key={action.href} href={action.href} className="group">
-                  <Card className="h-full border-border/50 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5">
-                    <CardContent className="flex h-full flex-col justify-between p-8">
-                      <div>
-                        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 transition-all duration-300 group-hover:bg-primary group-hover:border-primary">
-                          <Icon className="h-7 w-7 text-primary transition-all duration-300 group-hover:text-primary-foreground" />
-                        </div>
-                        <h3 className="font-semibold transition-all duration-300 group-hover:text-primary">
-                          {action.label}
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{action.description}</p>
-                      </div>
-                      <Badge variant="secondary" className="w-fit bg-primary/10 text-primary hover:bg-primary/20 mt-4">
-                        Acessar
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
+        <GestorDashboardClient
+          holdings={holdings}
+          companies={companies}
+          answerCountsEntries={answerCountsEntries}
+          questionCountEntries={questionCountEntries}
+          companyTemplatesEntries={companyTemplatesEntries}
+          recentAnswersWithCompany={recentAnswersWithCompany}
+          userProgressEntries={userProgressEntries}
+          totalUsers={totalUsers}
+          totalAnswers={totalAnswers}
+        />
       </div>
     </div>
   )

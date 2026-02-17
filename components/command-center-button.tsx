@@ -15,7 +15,7 @@ export function CommandCenterButton({ userRole }: CommandCenterButtonProps) {
   }
 
   return (
-    <Link href="/admin">
+    <Link href="/admin/command-center">
       <Button
         variant="outline"
         size="sm"

@@ -6,32 +6,83 @@ import Link from "next/link"
 import { CreateQuestionButton } from "@/components/questions/create-question-button"
 import { ImportCsvButton } from "@/components/questions/import-csv-button"
 import { AdminQuestionsTable } from "@/components/admin/admin-questions-table"
-import { requireAuth } from "@/lib/auth-utils"
-import { redirect } from "next/navigation"
+import { requireGestor } from "@/lib/auth-utils"
 import { CommandCenterButton } from "@/components/command-center-button"
 
 export default async function AdminQuestionsPage() {
-  const profile = await requireAuth()
-
-  // Only admin_main and holding_admin can access this page
-  if (profile.role !== "admin_main" && profile.role !== "holding_admin") {
-    redirect("/dashboard")
-  }
+  const profile = await requireGestor()
+  const isGestor = profile.role === "holding_admin"
 
   const adminClient = createAdminClient()
 
-  const { count: totalQuestionsCount } = await adminClient
-    .from("book_questions")
-    .select("*", { count: "exact", head: true })
+  // For gestor: scope questions to their organizations' templates
+  let allowedQuestionIds: string[] | null = null
+  let allowedTemplateIds: string[] | null = null
 
-  // Fetch ALL questions in batches of 1000 to bypass PostgREST limit
+  if (isGestor) {
+    // 1. Get gestor's holdings
+    const { data: memberships } = await adminClient
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", profile.id)
+    const holdingIds = [...new Set((memberships || []).map((m) => m.organization_id).filter(Boolean))]
+
+    if (holdingIds.length > 0) {
+      // 2. Get companies under those holdings
+      const { data: companiesData } = await adminClient
+        .from("companies")
+        .select("id")
+        .in("holding_id", holdingIds)
+      const companyIds = (companiesData || []).map((c) => c.id)
+
+      if (companyIds.length > 0) {
+        // 3. Get templates assigned to those companies
+        const { data: companyTemplates } = await adminClient
+          .from("company_templates")
+          .select("template_id")
+          .in("company_id", companyIds)
+        allowedTemplateIds = [...new Set((companyTemplates || []).map((ct) => ct.template_id).filter(Boolean))]
+
+        if (allowedTemplateIds.length > 0) {
+          // 4. Get question IDs in those templates
+          const { data: junctions } = await adminClient
+            .from("book_question_junction")
+            .select("question_template_id")
+            .in("book_template_id", allowedTemplateIds)
+          allowedQuestionIds = [...new Set((junctions || []).map((j: any) => j.question_template_id).filter(Boolean))]
+        }
+      }
+    }
+
+    // If no allowed questions found, set empty array
+    if (!allowedQuestionIds) allowedQuestionIds = []
+    if (!allowedTemplateIds) allowedTemplateIds = []
+  }
+
+  // Count total questions (scoped for gestor)
+  let totalQuestionsCount = 0
+  if (isGestor && allowedQuestionIds !== null) {
+    totalQuestionsCount = allowedQuestionIds.length
+  } else {
+    const { count } = await adminClient
+      .from("book_questions")
+      .select("*", { count: "exact", head: true })
+    totalQuestionsCount = count || 0
+  }
+
+  // Fetch questions in batches
   const PAGE_SIZE = 1000
   let allQuestions: any[] = []
   let from = 0
   let hasMore = true
 
+  // For gestor with no allowed questions, skip fetching
+  if (isGestor && allowedQuestionIds !== null && allowedQuestionIds.length === 0) {
+    hasMore = false
+  }
+
   while (hasMore) {
-    const { data: batch, error: batchError } = await adminClient
+    let query = adminClient
       .from("book_questions")
       .select(`
         *,
@@ -42,6 +93,13 @@ export default async function AdminQuestionsPage() {
       `)
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE - 1)
+
+    // Scope to allowed question IDs for gestor
+    if (isGestor && allowedQuestionIds !== null) {
+      query = query.in("id", allowedQuestionIds)
+    }
+
+    const { data: batch, error: batchError } = await query
 
     if (batchError) {
       console.error("[v0] Error fetching questions batch:", batchError)
@@ -58,16 +116,21 @@ export default async function AdminQuestionsPage() {
   }
 
   const questions = allQuestions
-  const questionsError = allQuestions.length === 0 ? true : null
 
   const questionsWithAssignments =
     questions?.filter((q: any) => q.book_question_junction && q.book_question_junction.length > 0).length || 0
 
-  // Fetch all templates for the assignment dropdown
-  const { data: allTemplates } = await adminClient
+  // Fetch templates for the assignment dropdown (scoped for gestor)
+  let allTemplatesQuery = adminClient
     .from("book_templates")
     .select("id, name")
     .order("name", { ascending: true })
+
+  if (isGestor && allowedTemplateIds !== null) {
+    allTemplatesQuery = allTemplatesQuery.in("id", allowedTemplateIds)
+  }
+
+  const { data: allTemplates } = await allTemplatesQuery
 
   const ITEMS_PER_PAGE = 20
 
@@ -77,10 +140,10 @@ export default async function AdminQuestionsPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <Link href={profile.role === "admin_main" ? "/admin" : "/dashboard"}>
+            <Link href="/admin">
               <Button variant="ghost" size="sm" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">{profile.role === "admin_main" ? "Voltar ao Painel" : "Voltar ao Dashboard"}</span>
+                <span className="hidden sm:inline">Voltar ao Painel</span>
                 <span className="sm:hidden">Voltar</span>
               </Button>
             </Link>

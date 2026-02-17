@@ -85,11 +85,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Block admins and gestors from accessing /dashboard routes (they use /admin)
+  // Block admin_main from accessing /dashboard routes (they use /admin)
+  // holding_admin (gestor) can access both /admin and /dashboard/*
   if (request.nextUrl.pathname.startsWith("/dashboard") && user) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
+    if (userRole === "admin_main" || userRole === "admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     }
     return supabaseResponse

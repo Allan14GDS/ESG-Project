@@ -15,9 +15,12 @@ import {
   Download,
   History,
   Trash2,
+  ChevronDown,
+  LayoutGrid,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import * as Collapsible from "@radix-ui/react-collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +32,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
@@ -249,6 +255,13 @@ const gestorNavigation = [
   },
 ]
 
+const commandCenterSubItems = [
+  { title: "Holdings", url: "/admin/holdings", icon: Building2 },
+  { title: "Cadernos", url: "/admin/templates", icon: BookOpen },
+  { title: "Questões", url: "/admin/questions", icon: HelpCircle },
+  { title: "Usuários", url: "/admin/users", icon: UserPlus },
+]
+
 const adminNavigation = [
   {
     title: "Dashboard",
@@ -259,44 +272,6 @@ const adminNavigation = [
         url: "/admin",
         icon: BarChart3,
         description: "Métricas e indicadores do sistema",
-        progress: 0,
-        status: "active",
-      },
-    ],
-  },
-  {
-    title: "Central de Comando",
-    description: "Acesso administrativo completo",
-    items: [
-      {
-        title: "Holdings",
-        url: "/admin/holdings",
-        icon: Building2,
-        description: "Gerenciar holdings e empresas",
-        progress: 0,
-        status: "active",
-      },
-      {
-        title: "Templates",
-        url: "/admin/templates",
-        icon: BookOpen,
-        description: "Gerenciar templates de cadernos",
-        progress: 0,
-        status: "active",
-      },
-      {
-        title: "Questões Admin",
-        url: "/admin/questions",
-        icon: HelpCircle,
-        description: "Biblioteca de questões do sistema",
-        progress: 0,
-        status: "active",
-      },
-      {
-        title: "Usuários Admin",
-        url: "/admin/users",
-        icon: UserPlus,
-        description: "Gerenciar todos os usuários",
         progress: 0,
         status: "active",
       },
@@ -451,6 +426,10 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
     }
   }, [])
 
+  const [commandCenterOpen, setCommandCenterOpen] = useState(true)
+
+  const isAdminOnly = userRole === "admin_main"
+
   const navigationToShow =
     userRole === "admin_main"
       ? adminNavigation
@@ -584,50 +563,127 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-2">
-        {navigationToShow.map((section, sectionIndex) => (
-          <div key={section.title}>
-            <SidebarGroup className="py-2">
-              <SidebarGroupLabel className="px-3 py-2 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
-                {section.title}
-              </SidebarGroupLabel>
-              <SidebarGroupContent className="mt-1">
-                <SidebarMenu className="gap-1">
-                  {section.items.map((item) => {
-                    const Icon = item.icon
-                    const isActive = pathname === item.url
-                    return (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton
-                          asChild
-                          className={`relative cursor-pointer transition-colors rounded-md h-auto ${
-                            isActive
-                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                              : "hover:bg-muted text-foreground"
-                          }`}
-                        >
-                          <a href={item.url} className="flex items-center gap-3 px-3 py-2.5 w-full min-h-[40px]">
-                            <Icon className="h-[17px] w-[17px] shrink-0" />
+        {navigationToShow.map((section, sectionIndex) => {
+          const isFirstSection = sectionIndex === 0
+          const showCommandCenter = isFirstSection && isAdminOnly
+
+          return (
+            <div key={section.title}>
+              <SidebarGroup className="py-2">
+                <SidebarGroupLabel className="px-3 py-2 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
+                  {section.title}
+                </SidebarGroupLabel>
+                <SidebarGroupContent className="mt-1">
+                  <SidebarMenu className="gap-1">
+                    {section.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive = pathname === item.url
+                      return (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            className={`relative cursor-pointer transition-colors rounded-md h-auto ${
+                              isActive
+                                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                : "hover:bg-muted text-foreground"
+                            }`}
+                          >
+                            <a href={item.url} className="flex items-center gap-3 px-3 py-2.5 w-full min-h-[40px]">
+                              <Icon className="h-[17px] w-[17px] shrink-0" />
+                              {open && (
+                                <span className="text-[13.5px] font-medium leading-none flex-1 text-left">
+                                  {item.title}
+                                </span>
+                              )}
+                              {item.progress > 0 && open && (
+                                <span className="text-xs font-semibold whitespace-nowrap shrink-0 ml-auto">
+                                  {item.progress}%
+                                </span>
+                              )}
+                            </a>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              {/* Central de Comando collapsible section - inserted after first group for admin/gestor */}
+              {showCommandCenter && (
+                <>
+                  <SidebarSeparator className="my-4" />
+                  <SidebarGroup className="py-2">
+                    <SidebarGroupContent className="mt-1">
+                      <SidebarMenu className="gap-1">
+                        <Collapsible.Root open={commandCenterOpen} onOpenChange={setCommandCenterOpen}>
+                          <SidebarMenuItem>
+                            <SidebarMenuButton
+                              asChild
+                              className={`relative cursor-pointer transition-colors rounded-md h-auto ${
+                                pathname === "/admin/command-center"
+                                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  : "hover:bg-muted text-foreground"
+                              }`}
+                            >
+                              <a href="/admin/command-center" className="flex items-center gap-3 px-3 py-2.5 w-full min-h-[40px]">
+                                <LayoutGrid className="h-[17px] w-[17px] shrink-0" />
+                                {open && (
+                                  <span className="text-[13.5px] font-medium leading-none flex-1 text-left">
+                                    Central de Comando
+                                  </span>
+                                )}
+                              </a>
+                            </SidebarMenuButton>
                             {open && (
-                              <span className="text-[13.5px] font-medium leading-none flex-1 text-left">
-                                {item.title}
-                              </span>
+                              <Collapsible.Trigger asChild>
+                                <button
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted/80 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                  }}
+                                >
+                                  <ChevronDown
+                                    className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                      commandCenterOpen ? "rotate-180" : ""
+                                    }`}
+                                  />
+                                </button>
+                              </Collapsible.Trigger>
                             )}
-                            {item.progress > 0 && open && (
-                              <span className="text-xs font-semibold whitespace-nowrap shrink-0 ml-auto">
-                                {item.progress}%
-                              </span>
-                            )}
-                          </a>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-4" />}
-          </div>
-        ))}
+                          </SidebarMenuItem>
+                          <Collapsible.Content>
+                            <SidebarMenuSub>
+                              {commandCenterSubItems.map((subItem) => {
+                                const SubIcon = subItem.icon
+                                const isSubActive = pathname === subItem.url
+                                return (
+                                  <SidebarMenuSubItem key={subItem.title}>
+                                    <SidebarMenuSubButton
+                                      asChild
+                                      isActive={isSubActive}
+                                    >
+                                      <a href={subItem.url} className="flex items-center gap-2">
+                                        <SubIcon className="h-4 w-4" />
+                                        <span>{subItem.title}</span>
+                                      </a>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                )
+                              })}
+                            </SidebarMenuSub>
+                          </Collapsible.Content>
+                        </Collapsible.Root>
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                </>
+              )}
+
+              {sectionIndex < navigationToShow.length - 1 && <SidebarSeparator className="my-4" />}
+            </div>
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-3 md:p-4">

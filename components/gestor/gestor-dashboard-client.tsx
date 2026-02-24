@@ -83,6 +83,7 @@ export function GestorDashboardClient({
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>("all")
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all")
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
+  const [userStatusFilter, setUserStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all")
 
   // Rebuild maps from serialized entries
   const answerCountsMap = useMemo(() => new Map(answerCountsEntries), [answerCountsEntries])
@@ -202,7 +203,7 @@ export function GestorDashboardClient({
 
   const answersLast7Days = answersByDay.slice(-7).reduce((sum, d) => sum + d.count, 0)
 
-  // Filtered user progress
+  // Filtered user progress (with status filter)
   const filteredUserProgress = useMemo(() => {
     return userProgressEntries
       .filter((u) => visibleCompanyIds.has(u.companyId))
@@ -210,8 +211,15 @@ export function GestorDashboardClient({
         ...u,
         percentage: u.total > 0 ? Math.round((u.answered / u.total) * 100) : 0,
       }))
+      .filter((u) => {
+        if (userStatusFilter === "all") return true
+        if (userStatusFilter === "completed") return u.percentage === 100
+        if (userStatusFilter === "in_progress") return u.percentage > 0 && u.percentage < 100
+        if (userStatusFilter === "pending") return u.percentage === 0
+        return true
+      })
       .sort((a, b) => b.percentage - a.percentage)
-  }, [userProgressEntries, visibleCompanyIds])
+  }, [userProgressEntries, visibleCompanyIds, userStatusFilter])
 
   // Unique users in filtered view
   const filteredUniqueUsers = useMemo(() => {
@@ -445,12 +453,30 @@ export function GestorDashboardClient({
       {/* User Progress Table */}
       <Card className="border-border/50">
         <CardContent className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground mb-1">
-            Progresso por Usuario
-          </h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            Respostas individuais por empresa
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                Progresso por Usuario
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Respostas individuais por empresa
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={userStatusFilter} onValueChange={(v) => setUserStatusFilter(v as typeof userStatusFilter)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                  <SelectItem value="in_progress">Em Progresso</SelectItem>
+                  <SelectItem value="completed">Concluidos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {filteredUserProgress.length > 0 ? (
             <div className="overflow-x-auto">
@@ -522,12 +548,15 @@ export function GestorDashboardClient({
                             <td colSpan={7} className="p-0">
                               <div className="bg-muted/30 px-6 py-3 ml-8 border-l-2 border-primary/20">
                                 <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                                  {incompleteCadernos.length > 0
-                                    ? `Cadernos pendentes (${incompleteCadernos.length})`
-                                    : "Todos os cadernos concluidos"}
+                                  Cadernos ({cadernoDetails.length})
+                                  {incompleteCadernos.length > 0 && (
+                                    <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">
+                                      {incompleteCadernos.length} pendente(s)
+                                    </span>
+                                  )}
                                 </p>
                                 <div className="space-y-1.5">
-                                  {(incompleteCadernos.length > 0 ? incompleteCadernos : cadernoDetails).map((d) => {
+                                  {cadernoDetails.map((d) => {
                                     const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
                                     return (
                                       <div
@@ -574,7 +603,9 @@ export function GestorDashboardClient({
             </div>
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              Nenhum usuario atribuido aos cadernos
+              {userStatusFilter !== "all"
+                ? "Nenhum usuario encontrado com esse status"
+                : "Nenhum usuario atribuido aos cadernos"}
             </div>
           )}
         </CardContent>

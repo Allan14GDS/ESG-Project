@@ -43,6 +43,7 @@ import {
   User,
   BookMarked,
   Filter,
+  ExternalLink,
 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -616,42 +617,54 @@ export function CadernosGestaoClient({
                                             {new Date(assignment.created_at).toLocaleDateString("pt-BR")}
                                           </TableCell>
                                           <TableCell>
-                                            <AlertDialog>
-                                              <AlertDialogTrigger asChild>
+                                            <div className="flex items-center gap-1">
+                                              <Link href={`/dashboard/questionnaire/${assignment.caderno_id}?company_id=${assignment.company_id}`}>
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
-                                                  className="text-destructive hover:text-destructive"
-                                                  disabled={isRemoving === assignment.id}
+                                                  className="text-primary hover:text-primary"
+                                                  title="Ver questões"
                                                 >
-                                                  <Trash2 className="h-4 w-4" />
+                                                  <ExternalLink className="h-4 w-4" />
                                                 </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                  <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
-                                                  <AlertDialogDescription>
-                                                    Tem certeza que deseja remover o caderno <strong>{`"${template?.name}"`}</strong>{" "}
-                                                    de <strong>{user.full_name || user.email}</strong>?
-                                                  </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                  <AlertDialogAction
-                                                    onClick={() =>
-                                                      handleRemoveAssignment(
-                                                        assignment.id,
-                                                        user.full_name || user.email,
-                                                        template?.name || "Caderno",
-                                                      )
-                                                    }
-                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                              </Link>
+                                              <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-destructive hover:text-destructive"
+                                                    disabled={isRemoving === assignment.id}
                                                   >
-                                                    Remover
-                                                  </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                            </AlertDialog>
+                                                    <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                  <AlertDialogHeader>
+                                                    <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                      Tem certeza que deseja remover o caderno <strong>{`"${template?.name}"`}</strong>{" "}
+                                                      de <strong>{user.full_name || user.email}</strong>?
+                                                    </AlertDialogDescription>
+                                                  </AlertDialogHeader>
+                                                  <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                      onClick={() =>
+                                                        handleRemoveAssignment(
+                                                          assignment.id,
+                                                          user.full_name || user.email,
+                                                          template?.name || "Caderno",
+                                                        )
+                                                      }
+                                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                      Remover
+                                                    </AlertDialogAction>
+                                                  </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                              </AlertDialog>
+                                            </div>
                                           </TableCell>
                                         </TableRow>
                                       )
@@ -807,45 +820,57 @@ export function CadernosGestaoClient({
                                   {new Date(assignment.created_at).toLocaleDateString("pt-BR")}
                                 </TableCell>
                                 <TableCell>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
+                                  <div className="flex items-center gap-1">
+                                    <Link href={`/dashboard/questionnaire/${template.id}?company_id=${assignment.company_id}`}>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="text-destructive hover:text-destructive"
-                                        disabled={isRemoving === assignment.id}
+                                        className="text-primary hover:text-primary"
+                                        title="Ver questões"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <ExternalLink className="h-4 w-4" />
                                       </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Tem certeza que deseja remover{" "}
-                                          <strong>
-                                            {assignment.profiles?.full_name || assignment.profiles?.email}
-                                          </strong>{" "}
-                                          do caderno <strong>"{template.name}"</strong>?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() =>
-                                            handleRemoveAssignment(
-                                              assignment.id,
-                                              assignment.profiles?.full_name || assignment.profiles?.email || "Usuário",
-                                              template.name,
-                                            )
-                                          }
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    </Link>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive"
+                                          disabled={isRemoving === assignment.id}
                                         >
-                                          Remover
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Remover Atribuição</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Tem certeza que deseja remover{" "}
+                                            <strong>
+                                              {assignment.profiles?.full_name || assignment.profiles?.email}
+                                            </strong>{" "}
+                                            do caderno <strong>{`"${template.name}"`}</strong>?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() =>
+                                              handleRemoveAssignment(
+                                                assignment.id,
+                                                assignment.profiles?.full_name || assignment.profiles?.email || "Usuário",
+                                                template.name,
+                                              )
+                                            }
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            Remover
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                               )

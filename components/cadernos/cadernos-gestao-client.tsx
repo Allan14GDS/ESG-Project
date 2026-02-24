@@ -42,6 +42,7 @@ import {
   AlertCircle,
   User,
   BookMarked,
+  Filter,
 } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -112,6 +113,7 @@ export function CadernosGestaoClient({
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"usuarios" | "cadernos">("usuarios")
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all")
 
   // Filter users by search
   const filteredUsers = useMemo(() => {
@@ -332,6 +334,19 @@ export function CadernosGestaoClient({
     return progressMap[key] || null
   }
 
+  // Filter assignments by status filter
+  const filterAssignmentsByStatus = (assignmentsList: Assignment[]) => {
+    if (statusFilter === "all") return assignmentsList
+    return assignmentsList.filter((a) => {
+      const progress = getAssignmentProgress(a.caderno_id, a.company_id)
+      if (!progress) {
+        // No progress data means pending
+        return statusFilter === "pending"
+      }
+      return progress.status === statusFilter
+    })
+  }
+
   const getStatusBadge = (status: "pending" | "in_progress" | "completed") => {
     switch (status) {
       case "completed":
@@ -423,17 +438,33 @@ export function CadernosGestaoClient({
 
         {/* View by User */}
         <TabsContent value="usuarios" className="space-y-4">
-          {/* User Search */}
+          {/* User Search + Status Filter */}
           <Card>
             <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar usuários por nome ou email..."
-                  value={userSearchTerm}
-                  onChange={(e) => setUserSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar usuários por nome ou email..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      <SelectItem value="pending">Pendentes</SelectItem>
+                      <SelectItem value="in_progress">Em Progresso</SelectItem>
+                      <SelectItem value="completed">Concluídos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -451,8 +482,12 @@ export function CadernosGestaoClient({
               </Card>
             ) : (
               filteredUsers.map((user) => {
-                const userAssignments = getUserAssignments(user.id)
-                const unassignedCount = templates.length - userAssignments.length
+                const allUserAssignments = getUserAssignments(user.id)
+                const userAssignments = filterAssignmentsByStatus(allUserAssignments)
+                const unassignedCount = templates.length - allUserAssignments.length
+
+                // If filter is active and no assignments match, hide this user
+                if (statusFilter !== "all" && userAssignments.length === 0) return null
 
                 return (
                   <Card key={user.id} className="overflow-hidden">
@@ -469,6 +504,7 @@ export function CadernosGestaoClient({
                             <Badge variant={userAssignments.length > 0 ? "default" : "secondary"} className="gap-1">
                               <BookOpen className="h-3 w-3" />
                               {userAssignments.length} caderno(s)
+                              {statusFilter !== "all" && ` (filtrado de ${allUserAssignments.length})`}
                             </Badge>
                           </div>
                         </div>
@@ -488,7 +524,7 @@ export function CadernosGestaoClient({
                     {userAssignments.length > 0 && (
                       <CardContent className="p-0">
                         {(() => {
-                          // Group assignments by company
+                          // Group filtered assignments by company
                           const groupedByCompany: Record<string, { company: any; holding: any; assignments: typeof userAssignments }> = {}
                           for (const assignment of userAssignments) {
                             const companyKey = assignment.company_id || "_no_company"
@@ -538,14 +574,14 @@ export function CadernosGestaoClient({
                                 </div>
 
                                 {/* Cadernos table for this company */}
-                                <Table>
+                                <Table className="table-fixed">
                                   <TableHeader>
                                     <TableRow className="bg-muted/10">
-                                      <TableHead className="min-w-[240px]">Caderno</TableHead>
-                                      <TableHead className="w-[180px]">Progresso</TableHead>
-                                      <TableHead className="w-[140px]">Função</TableHead>
-                                      <TableHead className="w-[140px]">Atribuído em</TableHead>
-                                      <TableHead className="w-[80px]">Ações</TableHead>
+                                      <TableHead className="w-[40%]">Caderno</TableHead>
+                                      <TableHead className="w-[20%]">Progresso</TableHead>
+                                      <TableHead className="w-[15%]">Função</TableHead>
+                                      <TableHead className="w-[15%]">Atribuído em</TableHead>
+                                      <TableHead className="w-[10%]">Ações</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -553,7 +589,7 @@ export function CadernosGestaoClient({
                                       const template = templates.find((t) => t.id === assignment.caderno_id)
                                       return (
                                         <TableRow key={assignment.id}>
-                                          <TableCell className="font-medium">
+                                          <TableCell className="font-medium break-words whitespace-normal align-top">
                                             {template?.name || assignment.caderno_id}
                                           </TableCell>
                                           <TableCell>
@@ -648,17 +684,33 @@ export function CadernosGestaoClient({
 
         {/* View by Template */}
         <TabsContent value="cadernos" className="space-y-4">
-          {/* Template Search */}
+          {/* Template Search + Status Filter */}
           <Card>
             <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar cadernos por nome ou descrição..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar cadernos por nome ou descrição..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      <SelectItem value="pending">Pendentes</SelectItem>
+                      <SelectItem value="in_progress">Em Progresso</SelectItem>
+                      <SelectItem value="completed">Concluídos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -676,7 +728,11 @@ export function CadernosGestaoClient({
               </Card>
             ) : (
               filteredTemplates.map((template) => {
-                const templateAssignments = getTemplateAssignments(template.id)
+                const allTemplateAssignments = getTemplateAssignments(template.id)
+                const templateAssignments = filterAssignmentsByStatus(allTemplateAssignments)
+
+                // If filter is active and no assignments match, hide this template
+                if (statusFilter !== "all" && templateAssignments.length === 0) return null
 
                 return (
                   <Card key={template.id} className="overflow-hidden">
@@ -698,6 +754,7 @@ export function CadernosGestaoClient({
                           <Badge variant={templateAssignments.length > 0 ? "default" : "secondary"} className="gap-1">
                             <Users className="h-3 w-3" />
                             {templateAssignments.length} atribuído(s)
+                            {statusFilter !== "all" && ` (filtrado de ${allTemplateAssignments.length})`}
                           </Badge>
                         </div>
                       </div>
@@ -705,16 +762,16 @@ export function CadernosGestaoClient({
 
                     {templateAssignments.length > 0 && (
                       <CardContent className="p-0">
-                        <Table>
+                        <Table className="table-fixed">
                           <TableHeader>
                             <TableRow className="bg-muted/20">
-                              <TableHead className="w-[160px]">Usuário</TableHead>
-                              <TableHead className="min-w-[200px]">Email</TableHead>
-                              <TableHead className="w-[240px]">Empresa</TableHead>
-                              <TableHead className="w-[180px]">Progresso</TableHead>
-                              <TableHead className="w-[140px]">Função</TableHead>
-                              <TableHead className="w-[140px]">Atribuído em</TableHead>
-                              <TableHead className="w-[80px]">Ações</TableHead>
+                              <TableHead className="w-[15%]">Usuário</TableHead>
+                              <TableHead className="w-[20%]">Email</TableHead>
+                              <TableHead className="w-[20%]">Empresa</TableHead>
+                              <TableHead className="w-[15%]">Progresso</TableHead>
+                              <TableHead className="w-[10%]">Função</TableHead>
+                              <TableHead className="w-[12%]">Atribuído em</TableHead>
+                              <TableHead className="w-[8%]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -723,11 +780,11 @@ export function CadernosGestaoClient({
                               const progress = getAssignmentProgress(assignment.caderno_id, assignment.company_id)
                               return (
                               <TableRow key={assignment.id}>
-                                <TableCell className="font-medium">{assignment.profiles?.full_name || "—"}</TableCell>
-                                <TableCell className="text-muted-foreground">
+                                <TableCell className="font-medium break-words whitespace-normal align-top">{assignment.profiles?.full_name || "—"}</TableCell>
+                                <TableCell className="text-muted-foreground break-words whitespace-normal align-top">
                                   {assignment.profiles?.email || "—"}
                                 </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell className="text-sm text-muted-foreground break-words whitespace-normal align-top">
                                   {company?.name || <span className="italic text-muted-foreground/60">N/A</span>}
                                 </TableCell>
                                 <TableCell>

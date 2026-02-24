@@ -42,10 +42,10 @@ export default function ResetPasswordPage() {
     // Check if user has a valid recovery session
     const checkSession = async () => {
       const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { user } } = await supabase.auth.getUser()
       
       // The user should have a session after clicking the recovery link
-      setIsValidSession(!!session)
+      setIsValidSession(!!user)
     }
 
     checkSession()

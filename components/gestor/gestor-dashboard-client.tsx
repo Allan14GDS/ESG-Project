@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, Fragment } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -19,6 +19,9 @@ import {
   AlertCircle,
   TrendingUp,
   Filter,
+  ChevronDown,
+  ChevronRight,
+  BookMarked,
 } from "lucide-react"
 import { AdminDashboardCharts } from "@/components/admin/admin-dashboard-charts"
 
@@ -43,6 +46,15 @@ interface UserProgressEntry {
   total: number
 }
 
+interface UserCadernoDetailEntry {
+  userId: string
+  companyId: string
+  cadernoId: string
+  cadernoName: string
+  answered: number
+  total: number
+}
+
 interface GestorDashboardClientProps {
   holdings: Holding[]
   companies: Company[]
@@ -51,6 +63,7 @@ interface GestorDashboardClientProps {
   companyTemplatesEntries: [string, string[]][]
   recentAnswersWithCompany: { date: string; company_id: string | null }[]
   userProgressEntries: UserProgressEntry[]
+  userCadernoDetailEntries?: UserCadernoDetailEntry[]
   totalUsers: number
   totalAnswers: number
 }
@@ -63,11 +76,14 @@ export function GestorDashboardClient({
   companyTemplatesEntries,
   recentAnswersWithCompany,
   userProgressEntries,
+  userCadernoDetailEntries = [],
   totalUsers,
   totalAnswers,
 }: GestorDashboardClientProps) {
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>("all")
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all")
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
+  const [userStatusFilter, setUserStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all")
 
   // Rebuild maps from serialized entries
   const answerCountsMap = useMemo(() => new Map(answerCountsEntries), [answerCountsEntries])
@@ -187,21 +203,61 @@ export function GestorDashboardClient({
 
   const answersLast7Days = answersByDay.slice(-7).reduce((sum, d) => sum + d.count, 0)
 
-  // Filtered user progress
+  // Filtered user progress (with status filter based on per-caderno status)
   const filteredUserProgress = useMemo(() => {
-    return userProgressEntries
+    const allEntries = userProgressEntries
       .filter((u) => visibleCompanyIds.has(u.companyId))
       .map((u) => ({
         ...u,
         percentage: u.total > 0 ? Math.round((u.answered / u.total) * 100) : 0,
       }))
-      .sort((a, b) => b.percentage - a.percentage)
-  }, [userProgressEntries, visibleCompanyIds])
+
+    if (userStatusFilter === "all") {
+      return allEntries.sort((a, b) => b.percentage - a.percentage)
+    }
+
+    // Filter based on per-caderno status (matching cadernos-gestao behavior)
+    return allEntries.filter((u) => {
+      const cadernos = userCadernoDetailEntries.filter(
+        (d) => d.userId === u.userId && d.companyId === u.companyId
+      )
+      if (cadernos.length === 0) return userStatusFilter === "pending"
+
+      return cadernos.some((d) => {
+        const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
+        if (userStatusFilter === "completed") return pct === 100
+        if (userStatusFilter === "in_progress") return pct > 0 && pct < 100
+        if (userStatusFilter === "pending") return pct === 0
+        return false
+      })
+    }).sort((a, b) => b.percentage - a.percentage)
+  }, [userProgressEntries, visibleCompanyIds, userStatusFilter, userCadernoDetailEntries])
 
   // Unique users in filtered view
   const filteredUniqueUsers = useMemo(() => {
     return new Set(filteredUserProgress.map((u) => u.userId)).size
   }, [filteredUserProgress])
+
+  // Group caderno detail entries by "userId_companyId"
+  const filteredCadernoDetails = useMemo(() => {
+    return userCadernoDetailEntries.filter((d) => visibleCompanyIds.has(d.companyId))
+  }, [userCadernoDetailEntries, visibleCompanyIds])
+
+  const getCadernoDetailsForUserCompany = (userId: string, companyId: string) => {
+    return filteredCadernoDetails.filter((d) => d.userId === userId && d.companyId === companyId)
+  }
+
+  const toggleUserExpand = (rowKey: string) => {
+    setExpandedUsers((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowKey)) {
+        next.delete(rowKey)
+      } else {
+        next.add(rowKey)
+      }
+      return next
+    })
+  }
 
   const isFiltered = selectedHoldingId !== "all" || selectedCompanyId !== "all"
 
@@ -409,59 +465,179 @@ export function GestorDashboardClient({
       {/* User Progress Table */}
       <Card className="border-border/50">
         <CardContent className="p-6">
-          <h3 className="text-sm font-medium text-muted-foreground mb-1">
-            Progresso por Usuario
-          </h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            Respostas individuais por empresa
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                Progresso por Usuario
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Respostas individuais por empresa
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Select value={userStatusFilter} onValueChange={(v) => setUserStatusFilter(v as typeof userStatusFilter)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                  <SelectItem value="in_progress">Em Progresso</SelectItem>
+                  <SelectItem value="completed">Concluidos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {filteredUserProgress.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-fixed">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-3 pr-4 font-medium">Nome</th>
-                    <th className="pb-3 pr-4 font-medium">Email</th>
-                    <th className="pb-3 pr-4 font-medium">Empresa</th>
-                    <th className="pb-3 pr-4 font-medium text-right">Respondidas</th>
-                    <th className="pb-3 pr-4 font-medium text-right">%</th>
+                    <th className="w-[36px] pb-3 pr-2"></th>
+                    <th className="w-[15%] pb-3 pr-4 font-medium">Nome</th>
+                    <th className="w-[22%] pb-3 pr-4 font-medium">Email</th>
+                    <th className="w-[23%] pb-3 pr-4 font-medium">Empresa</th>
+                    <th className="w-[12%] pb-3 pr-4 font-medium text-right">Respondidas</th>
+                    <th className="w-[8%] pb-3 pr-4 font-medium text-right">%</th>
                     <th className="pb-3 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUserProgress.map((u, idx) => (
-                    <tr key={`${u.userId}_${u.companyId}_${idx}`} className="border-b last:border-0">
-                      <td className="py-3 pr-4 font-medium">{u.userName}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{u.userEmail}</td>
-                      <td className="py-3 pr-4">{u.companyName}</td>
-                      <td className="py-3 pr-4 text-right tabular-nums">
-                        {u.answered}/{u.total}
-                      </td>
-                      <td className="py-3 pr-4 text-right tabular-nums">{u.percentage}%</td>
-                      <td className="py-3">
-                        {u.percentage === 100 ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100">
-                            Concluido
-                          </Badge>
-                        ) : u.percentage > 0 ? (
-                          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100">
-                            Em Progresso
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            Pendente
-                          </Badge>
+                  {filteredUserProgress.map((u, idx) => {
+                    const rowKey = `${u.userId}_${u.companyId}`
+                    const isExpanded = expandedUsers.has(rowKey)
+                    const allCadernoDetails = getCadernoDetailsForUserCompany(u.userId, u.companyId)
+                    // Filter cadernos in dropdown to match the active status filter
+                    const cadernoDetails = userStatusFilter === "all"
+                      ? allCadernoDetails
+                      : allCadernoDetails.filter((d) => {
+                          const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
+                          if (userStatusFilter === "completed") return pct === 100
+                          if (userStatusFilter === "in_progress") return pct > 0 && pct < 100
+                          if (userStatusFilter === "pending") return pct === 0
+                          return true
+                        })
+                    const incompleteCadernos = cadernoDetails.filter((d) => d.answered < d.total)
+                    const hasDetails = cadernoDetails.length > 0
+
+                    return (
+                      <Fragment key={`${rowKey}_${idx}`}>
+                        <tr
+                          className={`border-b last:border-0 ${hasDetails ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""}`}
+                          onClick={() => hasDetails && toggleUserExpand(rowKey)}
+                        >
+                          <td className="py-3 pr-2">
+                            {hasDetails && (
+                              <button
+                                className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                                aria-label={isExpanded ? "Recolher" : "Expandir"}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                          </td>
+                          <td className="py-3 pr-4 font-medium break-words whitespace-normal align-top">{u.userName}</td>
+                          <td className="py-3 pr-4 text-muted-foreground break-words whitespace-normal align-top">{u.userEmail}</td>
+                          <td className="py-3 pr-4 break-words whitespace-normal align-top">{u.companyName}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums align-top">
+                            {u.answered}/{u.total}
+                          </td>
+                          <td className="py-3 pr-4 text-right tabular-nums align-top">{u.percentage}%</td>
+                          <td className="py-3 align-top">
+                            {u.percentage === 100 ? (
+                              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100">
+                                Concluido
+                              </Badge>
+                            ) : u.percentage > 0 ? (
+                              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100">
+                                Em Progresso
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                Pendente
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b last:border-0">
+                            <td colSpan={7} className="p-0">
+                              <div className="bg-muted/30 px-6 py-3 ml-8 border-l-2 border-primary/20">
+                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+                                  {userStatusFilter === "all" ? (
+                                    <>
+                                      Cadernos ({cadernoDetails.length})
+                                      {incompleteCadernos.length > 0 && (
+                                        <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">
+                                          {incompleteCadernos.length} pendente(s)
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : userStatusFilter === "completed" ? (
+                                    <>Cadernos concluidos ({cadernoDetails.length} de {allCadernoDetails.length})</>
+                                  ) : userStatusFilter === "in_progress" ? (
+                                    <>Cadernos em progresso ({cadernoDetails.length} de {allCadernoDetails.length})</>
+                                  ) : (
+                                    <>Cadernos pendentes ({cadernoDetails.length} de {allCadernoDetails.length})</>
+                                  )}
+                                </p>
+                                <div className="space-y-1.5">
+                                  {cadernoDetails.map((d) => {
+                                    const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
+                                    return (
+                                      <div
+                                        key={`${d.cadernoId}_${d.companyId}`}
+                                        className="flex items-center gap-3 text-sm py-1"
+                                      >
+                                        <BookMarked className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                        <span className="font-medium flex-1 truncate" title={d.cadernoName}>
+                                          {d.cadernoName}
+                                        </span>
+                                        <span className="tabular-nums text-muted-foreground text-xs shrink-0">
+                                          {d.answered}/{d.total}
+                                        </span>
+                                        <div className="w-20 shrink-0">
+                                          <div className="h-1.5 w-full rounded-full bg-muted">
+                                            <div
+                                              className={`h-full rounded-full transition-all ${
+                                                pct === 100
+                                                  ? "bg-emerald-500"
+                                                  : pct > 0
+                                                    ? "bg-blue-500"
+                                                    : "bg-muted-foreground/30"
+                                              }`}
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                        <span className="tabular-nums text-xs text-muted-foreground w-8 text-right shrink-0">
+                                          {pct}%
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              Nenhum usuario atribuido aos cadernos
+              {userStatusFilter !== "all"
+                ? "Nenhum usuario encontrado com esse status"
+                : "Nenhum usuario atribuido aos cadernos"}
             </div>
           )}
         </CardContent>

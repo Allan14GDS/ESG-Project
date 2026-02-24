@@ -152,7 +152,15 @@ export default async function AdminPanelPage() {
     .limit(10000)
   const assignments = assignmentsData || []
 
+  // Fetch template names for caderno detail
   const templateIds = [...new Set(assignments.map((a: any) => a.caderno_id).filter(Boolean))]
+  const { data: templateNamesData } = await adminClient
+    .from("book_templates").select("id, name")
+    .in("id", templateIds.length > 0 ? templateIds : ["__none__"])
+  const templateNameMap = new Map<string, string>()
+  for (const t of templateNamesData || []) {
+    templateNameMap.set(t.id, t.name)
+  }
   const questionCountMap = new Map<string, number>()
   if (templateIds.length > 0) {
     const { data: questionCounts } = await adminClient
@@ -212,10 +220,12 @@ export default async function AdminPanelPage() {
   }
 
   const userAnswerCounts = new Map<string, number>()
+  // Also track per-user per-company per-template answered question IDs
+  const userTemplateCadernoAnswers = new Map<string, Set<string>>()
   if (userIds.length > 0 && companyIds.length > 0) {
     const { data: rawAnswers } = await adminClient
-      .from("book_answers").select("user_id, company_id, question_id")
-      .in("company_id", companyIds).in("user_id", userIds).limit(10000)
+      .from("book_answers").select("user_id, company_id, question_id, template_id")
+      .in("company_id", companyIds).in("user_id", userIds).limit(50000)
 
     if (rawAnswers) {
       const distinctSets = new Map<string, Set<string>>()
@@ -223,6 +233,13 @@ export default async function AdminPanelPage() {
         const key = `${row.user_id}_${row.company_id}`
         if (!distinctSets.has(key)) distinctSets.set(key, new Set())
         distinctSets.get(key)!.add(row.question_id)
+
+        // Track per-user per-company per-template
+        if (row.template_id) {
+          const tKey = `${row.user_id}_${row.company_id}_${row.template_id}`
+          if (!userTemplateCadernoAnswers.has(tKey)) userTemplateCadernoAnswers.set(tKey, new Set())
+          userTemplateCadernoAnswers.get(tKey)!.add(row.question_id)
+        }
       }
       for (const [key, questionSet] of distinctSets) {
         userAnswerCounts.set(key, questionSet.size)
@@ -264,6 +281,38 @@ export default async function AdminPanelPage() {
     }
   }
 
+  // Build per-user per-company per-caderno detail entries
+  const userCadernoDetailEntries: {
+    userId: string; companyId: string; cadernoId: string; cadernoName: string
+    answered: number; total: number
+  }[] = []
+
+  for (const [userId, companySet] of userAssignments) {
+    const userProfile = profilesMap.get(userId)
+    if (!userProfile) continue
+    if (userId === profile.id) continue
+
+    for (const companyId of companySet) {
+      const cadernoIds = companyTemplates.get(companyId)
+      if (!cadernoIds || cadernoIds.size === 0) continue
+
+      for (const cadernoId of cadernoIds) {
+        const totalQ = questionCountMap.get(cadernoId) || 0
+        if (totalQ === 0) continue
+        const answeredKey = `${userId}_${companyId}_${cadernoId}`
+        const answeredQ = userTemplateCadernoAnswers.get(answeredKey)?.size || 0
+        userCadernoDetailEntries.push({
+          userId,
+          companyId,
+          cadernoId,
+          cadernoName: templateNameMap.get(cadernoId) || cadernoId,
+          answered: Math.min(answeredQ, totalQ),
+          total: totalQ,
+        })
+      }
+    }
+  }
+
   const totalUsers = userIds.length
   const totalAnswers = [...answerCountsMap.values()].reduce((sum, v) => sum + v, 0)
 
@@ -290,6 +339,7 @@ export default async function AdminPanelPage() {
           companyTemplatesEntries={companyTemplatesEntries}
           recentAnswersWithCompany={recentAnswersWithCompany}
           userProgressEntries={userProgressEntries}
+          userCadernoDetailEntries={userCadernoDetailEntries}
           totalUsers={totalUsers}
           totalAnswers={totalAnswers}
         />

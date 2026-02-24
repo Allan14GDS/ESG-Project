@@ -444,10 +444,10 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
       console.log("[v0] Supabase client created, attempting signOut...")
 
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      if (session) {
+      if (user) {
         // Only try to signOut if we have an active session
         const { error } = await supabase.auth.signOut()
 

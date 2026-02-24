@@ -508,7 +508,17 @@ export function GestorDashboardClient({
                   {filteredUserProgress.map((u, idx) => {
                     const rowKey = `${u.userId}_${u.companyId}`
                     const isExpanded = expandedUsers.has(rowKey)
-                    const cadernoDetails = getCadernoDetailsForUserCompany(u.userId, u.companyId)
+                    const allCadernoDetails = getCadernoDetailsForUserCompany(u.userId, u.companyId)
+                    // Filter cadernos in dropdown to match the active status filter
+                    const cadernoDetails = userStatusFilter === "all"
+                      ? allCadernoDetails
+                      : allCadernoDetails.filter((d) => {
+                          const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
+                          if (userStatusFilter === "completed") return pct === 100
+                          if (userStatusFilter === "in_progress") return pct > 0 && pct < 100
+                          if (userStatusFilter === "pending") return pct === 0
+                          return true
+                        })
                     const incompleteCadernos = cadernoDetails.filter((d) => d.answered < d.total)
                     const hasDetails = cadernoDetails.length > 0
 
@@ -560,11 +570,21 @@ export function GestorDashboardClient({
                             <td colSpan={7} className="p-0">
                               <div className="bg-muted/30 px-6 py-3 ml-8 border-l-2 border-primary/20">
                                 <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-                                  Cadernos ({cadernoDetails.length})
-                                  {incompleteCadernos.length > 0 && (
-                                    <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">
-                                      {incompleteCadernos.length} pendente(s)
-                                    </span>
+                                  {userStatusFilter === "all" ? (
+                                    <>
+                                      Cadernos ({cadernoDetails.length})
+                                      {incompleteCadernos.length > 0 && (
+                                        <span className="ml-2 text-amber-600 dark:text-amber-400 font-normal">
+                                          {incompleteCadernos.length} pendente(s)
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : userStatusFilter === "completed" ? (
+                                    <>Cadernos concluidos ({cadernoDetails.length} de {allCadernoDetails.length})</>
+                                  ) : userStatusFilter === "in_progress" ? (
+                                    <>Cadernos em progresso ({cadernoDetails.length} de {allCadernoDetails.length})</>
+                                  ) : (
+                                    <>Cadernos pendentes ({cadernoDetails.length} de {allCadernoDetails.length})</>
                                   )}
                                 </p>
                                 <div className="space-y-1.5">

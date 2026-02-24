@@ -203,23 +203,35 @@ export function GestorDashboardClient({
 
   const answersLast7Days = answersByDay.slice(-7).reduce((sum, d) => sum + d.count, 0)
 
-  // Filtered user progress (with status filter)
+  // Filtered user progress (with status filter based on per-caderno status)
   const filteredUserProgress = useMemo(() => {
-    return userProgressEntries
+    const allEntries = userProgressEntries
       .filter((u) => visibleCompanyIds.has(u.companyId))
       .map((u) => ({
         ...u,
         percentage: u.total > 0 ? Math.round((u.answered / u.total) * 100) : 0,
       }))
-      .filter((u) => {
-        if (userStatusFilter === "all") return true
-        if (userStatusFilter === "completed") return u.percentage === 100
-        if (userStatusFilter === "in_progress") return u.percentage > 0 && u.percentage < 100
-        if (userStatusFilter === "pending") return u.percentage === 0
-        return true
+
+    if (userStatusFilter === "all") {
+      return allEntries.sort((a, b) => b.percentage - a.percentage)
+    }
+
+    // Filter based on per-caderno status (matching cadernos-gestao behavior)
+    return allEntries.filter((u) => {
+      const cadernos = userCadernoDetailEntries.filter(
+        (d) => d.userId === u.userId && d.companyId === u.companyId
+      )
+      if (cadernos.length === 0) return userStatusFilter === "pending"
+
+      return cadernos.some((d) => {
+        const pct = d.total > 0 ? Math.round((d.answered / d.total) * 100) : 0
+        if (userStatusFilter === "completed") return pct === 100
+        if (userStatusFilter === "in_progress") return pct > 0 && pct < 100
+        if (userStatusFilter === "pending") return pct === 0
+        return false
       })
-      .sort((a, b) => b.percentage - a.percentage)
-  }, [userProgressEntries, visibleCompanyIds, userStatusFilter])
+    }).sort((a, b) => b.percentage - a.percentage)
+  }, [userProgressEntries, visibleCompanyIds, userStatusFilter, userCadernoDetailEntries])
 
   // Unique users in filtered view
   const filteredUniqueUsers = useMemo(() => {

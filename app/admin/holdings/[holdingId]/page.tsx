@@ -63,24 +63,24 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
     )
   }
 
-  // Fetch cadernos assigned to each company via book_assignments
+  // Fetch cadernos assigned to each company via company_templates
   const companyIds = companies.map((c) => c.id)
-  const { data: assignments } = await adminClient
-    .from("book_assignments")
-    .select("company_id, caderno_id, book_templates(id, name)")
+  const { data: companyTemplates } = await adminClient
+    .from("company_templates")
+    .select("company_id, template_id, active, book_templates(id, name)")
     .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
+    .eq("active", true)
 
   // Build a map of company_id -> unique cadernos assigned to that company
   const companyCadernosMap: Record<string, { id: string; name: string }[]> = {}
-  for (const assignment of assignments || []) {
-    const compId = assignment.company_id
+  for (const ct of companyTemplates || []) {
+    const compId = ct.company_id
     if (!compId) continue
-    const template = assignment.book_templates as any
+    const template = ct.book_templates as any
     if (!template?.id) continue
     if (!companyCadernosMap[compId]) {
       companyCadernosMap[compId] = []
     }
-    // Avoid duplicates
     if (!companyCadernosMap[compId].some((c) => c.id === template.id)) {
       companyCadernosMap[compId].push({ id: template.id, name: template.name })
     }

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { ArrowLeft, Hourglass, Mail, Moon, Sun, CheckCircle } from "lucide-react"
+import { ArrowLeft, Mail, Moon, Sun, CheckCircle } from "lucide-react"
+import Image from "next/image"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -64,38 +65,30 @@ export default function ForgotPasswordPage() {
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2">
-          <Hourglass className="h-6 w-6 animate-spin text-primary" />
-          <span className="text-foreground">Carregando...</span>
-        </div>
+        <Image src="/logo-symbol.png" alt="B.Kick" width={40} height={40} className="h-10 w-10 animate-pulse" priority />
       </div>
     )
   }
 
   return (
     <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:flex lg:flex-1 flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-primary/10 via-background to-accent/5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Hourglass className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">b.kick</span>
+      <div className="hidden lg:flex lg:flex-1 flex-col justify-between p-12 xl:p-16" style={{ background: "#161d3c" }}>
+        <div className="flex items-center">
+          <Image src="/logo-horizontal-navy.png" alt="B.Kick" width={140} height={40} className="h-10 w-auto object-contain invert" priority />
         </div>
 
         <div className="max-w-lg">
-          <h1 className="text-5xl font-bold leading-tight text-foreground mb-6">
+          <h1 className="text-5xl font-bold leading-tight text-white mb-6">
             Recupere seu{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              acesso com seguranca.
-            </span>
+            <span style={{ color: "#00d67d" }}>acesso com segurança.</span>
           </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            Enviaremos um link de recuperacao para o seu email cadastrado. Siga as instrucoes para redefinir sua senha.
+          <p className="text-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
+            Enviaremos um link de recuperação para o seu email cadastrado. Siga as instruções para redefinir sua senha.
           </p>
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          © 2025 GRI ESG Platform. Todos os direitos reservados.
+        <div className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+          © 2025 B.Kick. Todos os direitos reservados.
         </div>
       </div>
 
@@ -117,13 +110,8 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Hourglass className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">
-              GRI ESG Platform
-            </span>
+          <div className="lg:hidden mb-8">
+            <Image src="/logo-vertical-navy.png" alt="B.Kick" width={100} height={100} className="h-16 w-auto object-contain dark:invert" priority />
           </div>
 
           <Link

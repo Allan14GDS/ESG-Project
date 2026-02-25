@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Hourglass,
   User,
   Settings,
   HelpCircle,
@@ -18,6 +17,7 @@ import {
   ChevronDown,
   LayoutGrid,
 } from "lucide-react"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as Collapsible from "@radix-ui/react-collapsible"
@@ -524,13 +524,26 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2 px-3 py-3 md:gap-3 md:px-4 md:py-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-lg flex items-center justify-center shrink-0">
-            <Hourglass className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base md:text-lg font-bold truncate">b.kick</h2>
-            {!open && <p className="text-xs text-muted-foreground truncate">Plataforma de Materialidade ESG</p>}
-          </div>
+          {/* Collapsed: show symbol only; expanded: show horizontal lockup */}
+          {open ? (
+            <Image
+              src="/logo-horizontal-navy.png"
+              alt="B.Kick"
+              width={120}
+              height={32}
+              className="h-8 w-auto object-contain dark:invert"
+              priority
+            />
+          ) : (
+            <Image
+              src="/logo-symbol.png"
+              alt="B.Kick"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain shrink-0"
+              priority
+            />
+          )}
           {!open && <ThemeToggle />}
         </div>
 
@@ -698,15 +711,7 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
             Sair
           </Button>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs font-medium whitespace-nowrap">
-                Demo Platform
-              </Badge>
-              <Badge className="text-xs font-medium bg-primary text-primary-foreground whitespace-nowrap">
-                GRI 2021
-              </Badge>
-            </div>
+          <div className="flex items-center justify-end">
             {open && <ThemeToggle />}
           </div>
 

@@ -42,15 +42,21 @@ export default async function AdminPanelPage() {
 
     const { data: recentAnswers } = await adminClient
       .from("book_answers")
-      .select("created_at, company_id")
-      .gte("created_at", thirtyDaysAgo.toISOString())
-      .order("created_at", { ascending: true })
+      .select("created_at, updated_at, company_id")
+      .or(`created_at.gte.${thirtyDaysAgo.toISOString()},updated_at.gte.${thirtyDaysAgo.toISOString()}`)
+      .order("updated_at", { ascending: true })
       .limit(5000)
 
-    const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
-      date: a.created_at?.split("T")[0] || "",
-      company_id: a.company_id,
-    }))
+    const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => {
+      // Use the most recent date between created_at and updated_at
+      const createdDate = a.created_at?.split("T")[0] || ""
+      const updatedDate = a.updated_at?.split("T")[0] || ""
+      const activityDate = updatedDate > createdDate ? updatedDate : createdDate
+      return {
+        date: activityDate,
+        company_id: a.company_id,
+      }
+    })
 
     const { data: assignmentsData } = await adminClient
       .from("book_assignments")
@@ -196,16 +202,21 @@ export default async function AdminPanelPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   const { data: recentAnswers } = await adminClient
-    .from("book_answers").select("created_at, company_id")
+    .from("book_answers").select("created_at, updated_at, company_id")
     .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
-    .gte("created_at", thirtyDaysAgo.toISOString())
-    .order("created_at", { ascending: true })
+    .or(`created_at.gte.${thirtyDaysAgo.toISOString()},updated_at.gte.${thirtyDaysAgo.toISOString()}`)
+    .order("updated_at", { ascending: true })
     .limit(5000)
 
-  const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
-    date: a.created_at?.split("T")[0] || "",
-    company_id: a.company_id,
-  }))
+  const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => {
+    const createdDate = a.created_at?.split("T")[0] || ""
+    const updatedDate = a.updated_at?.split("T")[0] || ""
+    const activityDate = updatedDate > createdDate ? updatedDate : createdDate
+    return {
+      date: activityDate,
+      company_id: a.company_id,
+    }
+  })
 
   // Per-user progress
   const userIds = [...new Set(assignments.map((a: any) => a.user_id).filter(Boolean))]

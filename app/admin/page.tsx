@@ -202,10 +202,28 @@ export default async function AdminPanelPage() {
     .order("updated_at", { ascending: true })
     .limit(5000)
 
+  console.log("[v0] Gestor recentAnswers raw count:", recentAnswers?.length)
+  console.log("[v0] Gestor companyIds:", JSON.stringify(companyIds))
+  console.log("[v0] Gestor thirtyDaysAgo:", thirtyDaysAgo.toISOString())
+  if (recentAnswers && recentAnswers.length > 0) {
+    console.log("[v0] Gestor sample first:", JSON.stringify(recentAnswers[0]))
+    console.log("[v0] Gestor sample last:", JSON.stringify(recentAnswers[recentAnswers.length - 1]))
+  }
+  if (!recentAnswers) {
+    console.log("[v0] Gestor recentAnswers is null/undefined!")
+  }
+
   const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
     date: a.updated_at?.split("T")[0] || "",
     company_id: a.company_id,
   }))
+
+  const debugDateMap = new Map<string, number>()
+  for (const a of recentAnswersWithCompany) {
+    debugDateMap.set(a.date, (debugDateMap.get(a.date) || 0) + 1)
+  }
+  const debugSorted = [...debugDateMap.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 15)
+  console.log("[v0] Gestor recentAnswers date distribution (top 15):", JSON.stringify(debugSorted))
 
   // Per-user progress
   const userIds = [...new Set(assignments.map((a: any) => a.user_id).filter(Boolean))]

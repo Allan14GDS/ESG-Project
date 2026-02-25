@@ -61,7 +61,8 @@ interface GestorDashboardClientProps {
   answerCountsEntries: [string, number][]
   questionCountEntries: [string, number][]
   companyTemplatesEntries: [string, string[]][]
-  recentAnswersWithCompany: { date: string; company_id: string | null }[]
+  dailyCountsData: { date: string; company_id: string | null; count: number }[]
+  last30Days: string[]
   userProgressEntries: UserProgressEntry[]
   userCadernoDetailEntries?: UserCadernoDetailEntry[]
   totalUsers: number
@@ -74,7 +75,8 @@ export function GestorDashboardClient({
   answerCountsEntries,
   questionCountEntries,
   companyTemplatesEntries,
-  recentAnswersWithCompany,
+  dailyCountsData,
+  last30Days,
   userProgressEntries,
   userCadernoDetailEntries = [],
   totalUsers,
@@ -181,25 +183,24 @@ export function GestorDashboardClient({
     return progress.sort((a, b) => b.percentage - a.percentage)
   }, [filteredCompanies, selectedCompanyId, companyTemplatesMap, questionCountMap, answerCountsMap])
 
-  // Answers by day (filtered)
+  // Answers by day (filtered) - uses server-generated date list and pre-aggregated counts
   const answersByDay = useMemo(() => {
     const dayMap = new Map<string, number>()
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      dayMap.set(d.toISOString().split("T")[0], 0)
+    // Use server-generated dates to avoid timezone mismatches
+    for (const day of last30Days) {
+      dayMap.set(day, 0)
     }
 
-    for (const entry of recentAnswersWithCompany) {
+    for (const entry of dailyCountsData) {
       if (entry.company_id && !visibleCompanyIds.has(entry.company_id)) continue
       const day = entry.date
       if (day && dayMap.has(day)) {
-        dayMap.set(day, (dayMap.get(day) || 0) + 1)
+        dayMap.set(day, (dayMap.get(day) || 0) + entry.count)
       }
     }
 
     return Array.from(dayMap.entries()).map(([date, count]) => ({ date, count }))
-  }, [recentAnswersWithCompany, visibleCompanyIds])
+  }, [dailyCountsData, last30Days, visibleCompanyIds])
 
   const answersLast7Days = answersByDay.slice(-7).reduce((sum, d) => sum + d.count, 0)
 

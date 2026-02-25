@@ -37,19 +37,22 @@ export default async function AdminPanelPage() {
       id: c.id, name: c.name, holding_id: c.holding_id,
     }))
 
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // Use RPC for pre-aggregated daily answer counts (efficient, bypasses RLS)
+    const { data: dailyCounts } = await adminClient
+      .rpc("get_daily_answer_counts_all", { p_days: 30 })
 
-    const { data: recentAnswers } = await adminClient
-      .from("book_answers")
-      .select("created_at, company_id")
-      .gte("created_at", thirtyDaysAgo.toISOString())
-      .order("created_at", { ascending: true })
-      .limit(5000)
+    // Build the last 30 days date list on the server (UTC) so client doesn't have timezone issues
+    const last30Days: string[] = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      last30Days.push(d.toISOString().split("T")[0])
+    }
 
-    const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
-      date: a.created_at?.split("T")[0] || "",
-      company_id: a.company_id,
+    const dailyCountsData = (dailyCounts || []).map((row: any) => ({
+      date: row.activity_date,
+      company_id: row.company_id,
+      count: Number(row.answer_count),
     }))
 
     const { data: assignmentsData } = await adminClient
@@ -114,7 +117,8 @@ export default async function AdminPanelPage() {
             answerCountsEntries={answerCountsEntries}
             questionCountEntries={questionCountEntries}
             companyTemplatesEntries={companyTemplatesEntries}
-            recentAnswersWithCompany={recentAnswersWithCompany}
+            dailyCountsData={dailyCountsData}
+            last30Days={last30Days}
             totalTemplates={totalTemplates}
             totalQuestions={totalQuestions}
             totalUsers={totalUsers}
@@ -192,19 +196,22 @@ export default async function AdminPanelPage() {
     companyTemplates.get(compId)!.add(templateId)
   }
 
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  // Use RPC for pre-aggregated daily answer counts (efficient, bypasses RLS)
+  const { data: dailyCounts } = await adminClient
+    .rpc("get_daily_answer_counts", { p_company_ids: companyIds.length > 0 ? companyIds : [], p_days: 30 })
 
-  const { data: recentAnswers } = await adminClient
-    .from("book_answers").select("created_at, company_id")
-    .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
-    .gte("created_at", thirtyDaysAgo.toISOString())
-    .order("created_at", { ascending: true })
-    .limit(5000)
+  // Build the last 30 days date list on the server (UTC)
+  const last30Days: string[] = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    last30Days.push(d.toISOString().split("T")[0])
+  }
 
-  const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => ({
-    date: a.created_at?.split("T")[0] || "",
-    company_id: a.company_id,
+  const dailyCountsData = (dailyCounts || []).map((row: any) => ({
+    date: row.activity_date,
+    company_id: row.company_id,
+    count: Number(row.answer_count),
   }))
 
   // Per-user progress
@@ -337,7 +344,8 @@ export default async function AdminPanelPage() {
           answerCountsEntries={answerCountsEntries}
           questionCountEntries={questionCountEntries}
           companyTemplatesEntries={companyTemplatesEntries}
-          recentAnswersWithCompany={recentAnswersWithCompany}
+          dailyCountsData={dailyCountsData}
+          last30Days={last30Days}
           userProgressEntries={userProgressEntries}
           userCadernoDetailEntries={userCadernoDetailEntries}
           totalUsers={totalUsers}

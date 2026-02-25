@@ -47,16 +47,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const supabase = await createClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/auth/login")
   }
 
-  const { profile, error } = await getProfileWithRetry(session.user.id)
+  const { profile, error } = await getProfileWithRetry(user.id)
 
-  console.log("[v0] Admin layout - Final profile check:", { userId: session.user.id, profile, error })
+  console.log("[v0] Admin layout - Final profile check:", { userId: user.id, profile, error })
 
   // Check if user has admin access
   if (!profile || !profile.is_active) {

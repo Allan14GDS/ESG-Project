@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Hourglass, ArrowRight, Moon, Sun } from "lucide-react"
+import { Eye, EyeOff, ArrowRight, Moon, Sun } from "lucide-react"
+import Image from "next/image"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -79,32 +80,24 @@ export default function LoginPage() {
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2">
-          <Hourglass className="h-6 w-6 animate-spin text-primary" />
-          <span className="text-foreground">Carregando...</span>
-        </div>
+        <Image src="/logo-symbol.png" alt="B.Kick" width={40} height={40} className="h-10 w-10 animate-pulse" priority />
       </div>
     )
   }
 
   return (
     <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:flex lg:flex-1 flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-primary/10 via-background to-accent/5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Hourglass className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">b.kick</span>
+      <div className="hidden lg:flex lg:flex-1 flex-col justify-between p-12 xl:p-16" style={{ background: "#161d3c" }}>
+        <div className="flex items-center">
+          <Image src="/logo-horizontal-navy.png" alt="B.Kick" width={140} height={40} className="h-10 w-auto object-contain invert" priority />
         </div>
 
         <div className="max-w-lg">
-          <h1 className="text-5xl font-bold leading-tight text-foreground mb-6">
+          <h1 className="text-5xl font-bold leading-tight text-white mb-6">
             O futuro da gestão{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              ESG inteligente
-            </span>
+            <span style={{ color: "#00d67d" }}>ESG inteligente</span>
           </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed">
+          <p className="text-lg leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
             Centralize dados, automatize relatórios e transforme seus processos de sustentabilidade com o poder da
             gestão integrada.
           </p>
@@ -114,20 +107,21 @@ export default function LoginPage() {
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-10 w-10 rounded-full border-2 border-background bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold"
+                  className="h-10 w-10 rounded-full border-2 text-sm font-semibold flex items-center justify-center"
+                  style={{ borderColor: "#00d67d", background: "#00d67d", color: "#161d3c" }}
                 >
                   {i}
                 </div>
               ))}
             </div>
             <div className="text-sm">
-              <div className="font-semibold text-foreground">+50 Organizações</div>
-              <div className="text-muted-foreground">confiam na plataforma</div>
+              <div className="font-semibold text-white">+50 Organizações</div>
+              <div style={{ color: "rgba(255,255,255,0.55)" }}>confiam na plataforma</div>
             </div>
           </div>
         </div>
 
-        <div className="text-sm text-muted-foreground">© 2025 GRI ESG Platform. Todos os direitos reservados.</div>
+        <div className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>© 2025 B.Kick. Todos os direitos reservados.</div>
       </div>
 
       <div className="flex flex-1 items-center justify-center p-8 lg:p-12 relative">
@@ -144,11 +138,8 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Hourglass className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">GRI ESG Platform</span>
+          <div className="lg:hidden mb-8">
+            <Image src="/logo-vertical-navy.png" alt="B.Kick" width={100} height={100} className="h-16 w-auto object-contain dark:invert" priority />
           </div>
 
           <div className="mb-8">

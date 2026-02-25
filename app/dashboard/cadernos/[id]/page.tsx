@@ -449,19 +449,19 @@ export default function CadernoQuestionsPage({
             ) : (
               <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <div className="inline-block min-w-full align-middle">
-                  <table className="min-w-full divide-y divide-border">
+                  <table className="min-w-full divide-y divide-border table-fixed">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        <th className="w-[80px] text-left p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                           Ordem
                         </th>
                         <th className="text-left p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                           Pergunta
                         </th>
-                        <th className="text-left p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        <th className="w-[120px] text-left p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                           Tipo
                         </th>
-                        <th className="text-right p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        <th className="w-[100px] text-right p-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                           Ações
                         </th>
                       </tr>
@@ -469,21 +469,21 @@ export default function CadernoQuestionsPage({
                     <tbody>
                       {paginatedQuestions.map((question, index) => (
                         <tr key={question.id} className="border-b border-border hover:bg-muted transition-colors">
-                          <td className="p-4 text-sm text-muted-foreground">#{startIndex + index + 1}</td>
-                          <td className="p-4">
-                            <p className="font-medium text-foreground">{question.label}</p>
+                          <td className="w-[80px] p-4 text-sm text-muted-foreground align-top">#{startIndex + index + 1}</td>
+                          <td className="p-4 align-top">
+                            <p className="font-medium text-foreground break-words whitespace-normal">{question.label}</p>
                             {question.metadata?.disclosure && (
-                              <p className="text-xs text-muted-foreground mt-1">
+                              <p className="text-xs text-muted-foreground mt-1 break-words">
                                 Disclosure: {question.metadata.disclosure}
                               </p>
                             )}
                           </td>
-                          <td className="p-4">
+                          <td className="w-[120px] p-4 align-top">
                             <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                               {question.type}
                             </span>
                           </td>
-                          <td className="p-4">
+                          <td className="w-[100px] p-4 align-top">
                             <div className="flex items-center justify-end gap-2">
                               <EditQuestionWithTemplatesButton
                                 question={{

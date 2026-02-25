@@ -113,29 +113,12 @@ export async function verifyOrganizationAccess(organizationId: string): Promise<
 }
 
 export async function requireAdmin() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Simple check: if email is admin_main@email.com, grant access
-  if (user?.email === "admin_main@email.com") {
-    return {
-      id: user.id,
-      email: user.email,
-      full_name: "Admin Principal",
-      role: "admin_main" as UserRole,
-      is_active: true,
-      organization_id: null,
-      is_super_admin: true,
-    }
-  }
-
-  // For other users, check via normal flow
   const result = await verifyAdminOnly()
 
   if (!result.authorized) {
+    if (!result.profile) {
+      redirect("/auth/login")
+    }
     redirect("/dashboard")
   }
 

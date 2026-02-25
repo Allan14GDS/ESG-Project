@@ -78,14 +78,15 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === "/" && user) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin") {
+    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     } else {
       return NextResponse.redirect(new URL("/dashboard/meus-cadernos", request.url))
     }
   }
 
-  // Block admins from accessing /dashboard routes
+  // Block admin_main from accessing /dashboard routes (they use /admin)
+  // holding_admin (gestor) can access both /admin and /dashboard/*
   if (request.nextUrl.pathname.startsWith("/dashboard") && user) {
     const userRole = await getUserRole(user.id)
 
@@ -117,7 +118,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const userRole = await getUserRole(user.id)
 
-    if (userRole === "admin_main" || userRole === "admin") {
+    if (userRole === "admin_main" || userRole === "admin" || userRole === "holding_admin") {
       return NextResponse.redirect(new URL("/admin", request.url))
     } else {
       return NextResponse.redirect(new URL("/dashboard/meus-cadernos", request.url))

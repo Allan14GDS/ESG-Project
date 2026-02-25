@@ -71,7 +71,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     return () => {
       abortController.abort()
     }
-  }, [])
+  }, [pathname])
 
   // Show children immediately for pages that should hide sidebar to avoid hydration issues
   if (shouldHideSidebar) {

@@ -1,48 +1,67 @@
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Users, ArrowLeft, Search, UserPlus, Shield } from "lucide-react"
+import { Users, ArrowLeft, UserPlus } from "lucide-react"
 import Link from "next/link"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { requireGestor } from "@/lib/auth-utils"
 import { CommandCenterButton } from "@/components/command-center-button"
 import { UsersSearchTable } from "@/components/admin/users-search-table"
 
-const roleLabels = {
-  revisor: { label: "Revisor", variant: "default" },
-  user: { label: "Usuário", variant: "default" },
-  responder: { label: "Respondente", variant: "default" },
-  holding_admin: { label: "Gestor", variant: "default" },
-}
-
 export default async function AdminUsersPage() {
   const profile = await requireGestor()
   const isGestor = profile.role === "holding_admin"
 
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !user) {
-    redirect("/auth/login")
-  }
-
   const adminClient = createAdminClient()
 
-  let query = adminClient.from("profiles").select("*")
+  let profiles: any[] = []
 
   if (isGestor) {
-    query = query.in("role", ["revisor", "user", "responder"])
-  }
+    // Scope users to gestor's organizations
+    // 1. Get gestor's holdings
+    const { data: memberships } = await adminClient
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", profile.id)
+    const holdingIds = [...new Set((memberships || []).map((m) => m.organization_id).filter(Boolean))]
 
-  const { data: profiles, error: profilesError } = await query.order("created_at", { ascending: false })
+    if (holdingIds.length > 0) {
+      // 2. Get companies under those holdings
+      const { data: companiesData } = await adminClient
+        .from("companies")
+        .select("id")
+        .in("holding_id", holdingIds)
+      const companyIds = (companiesData || []).map((c) => c.id)
+
+      if (companyIds.length > 0) {
+        // 3. Get distinct user IDs assigned to those companies
+        const { data: assignments } = await adminClient
+          .from("book_assignments")
+          .select("user_id")
+          .in("company_id", companyIds)
+          .limit(10000)
+        const userIds = [...new Set((assignments || []).map((a: any) => a.user_id).filter(Boolean))]
+
+        if (userIds.length > 0) {
+          // 4. Fetch profiles for those users (only basic roles)
+          const { data: scopedProfiles } = await adminClient
+            .from("profiles")
+            .select("*")
+            .in("id", userIds)
+            .in("role", ["revisor", "user", "responder"])
+            .order("created_at", { ascending: false })
+          profiles = scopedProfiles || []
+        }
+      }
+    }
+  } else {
+    // Admin: see all users
+    const { data: allProfiles } = await adminClient
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+    profiles = allProfiles || []
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,10 +69,10 @@ export default async function AdminUsersPage() {
         {/* Back Button */}
         <div className="mb-8">
           <div className="flex items-center gap-2">
-            <Link href={isGestor ? "/dashboard" : "/admin"}>
+            <Link href="/admin">
               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="h-4 w-4" />
-                {isGestor ? "Voltar ao Dashboard" : "Voltar ao Painel"}
+                Voltar ao Painel
               </Button>
             </Link>
             <CommandCenterButton userRole={profile.role} />

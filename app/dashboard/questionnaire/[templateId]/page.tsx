@@ -210,33 +210,16 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   console.log("[v0] Holding ID for save:", holdingIdForSave)
   console.log("[v0] Template ID:", templateId)
 
-  if (!isGestor) {
-    // Usuários regulares só veem suas próprias respostas PARA A EMPRESA ESPECÍFICA
-    answersQuery = answersQuery.eq("user_id", user.id)
-    
-    // IMPORTANTE: Filtrar por company_id para separar respostas de empresas diferentes
-    if (companyIdForSave) {
-      answersQuery = answersQuery.eq("company_id", companyIdForSave)
-      console.log("[v0] FILTRO: Usuário regular - filtrando por user_id E company_id:", companyIdForSave)
-    } else {
-      // Se não tiver company_id, filtrar por respostas sem company_id (legado)
-      answersQuery = answersQuery.is("company_id", null)
-      console.log("[v0] FILTRO: Usuário regular - filtrando por user_id e company_id IS NULL")
-    }
+  // TODOS os usuários com acesso ao caderno veem TODAS as respostas (filtrado por company/holding)
+  // A proteção de escrita continua no backend (questionnaire-actions.ts) - só o autor pode editar suas respostas
+  if (companyIdForSave) {
+    answersQuery = answersQuery.or(`company_id.eq.${companyIdForSave},and(company_id.is.null,holding_id.eq.${holdingIdForSave})`)
+    console.log("[v0] FILTRO: Todas respostas por company_id:", companyIdForSave, "OU (company_id IS NULL AND holding_id:", holdingIdForSave, ")")
+  } else if (holdingIdForSave) {
+    answersQuery = answersQuery.eq("holding_id", holdingIdForSave).is("company_id", null)
+    console.log("[v0] FILTRO: Todas respostas por holding_id:", holdingIdForSave, "e company_id IS NULL")
   } else {
-    // GESTOR: Filtrar por company_id se estiver visualizando uma empresa específica
-    if (companyIdForSave) {
-      // Gestor visualizando uma EMPRESA específica - filtrar por company_id OU respostas legadas sem company_id
-      answersQuery = answersQuery.or(`company_id.eq.${companyIdForSave},and(company_id.is.null,holding_id.eq.${holdingIdForSave})`)
-      console.log("[v0] FILTRO: Gestor - filtrando por company_id:", companyIdForSave, "OU (company_id IS NULL AND holding_id:", holdingIdForSave, ")")
-    } else if (holdingIdForSave) {
-      // Gestor visualizando apenas HOLDING (sem empresa) - filtrar por holding_id
-      answersQuery = answersQuery.eq("holding_id", holdingIdForSave).is("company_id", null)
-      console.log("[v0] FILTRO: Gestor - filtrando por holding_id:", holdingIdForSave, "e company_id IS NULL")
-    } else {
-      // Gestor sem contexto específico - buscar todas
-      console.log("[v0] FILTRO: Gestor - SEM FILTROS, buscando TODAS as respostas do template")
-    }
+    console.log("[v0] FILTRO: SEM FILTROS, buscando TODAS as respostas do template")
   }
 
   const { data: existingAnswers, error: answersError } = await answersQuery
@@ -289,11 +272,8 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       }
       answersByQuestion[answer.question_id].push(answer)
 
-      // GESTOR: Preencher campos com a primeira resposta disponível de qualquer usuário
-      // USUÁRIO: Preencher apenas com suas próprias respostas
-      const shouldMapResponse = isGestor 
-        ? !responsesMap[answer.question_id] // Gestor: pega primeira resposta disponível
-        : answer.user_id === user.id // Usuário: só suas respostas
+      // Todos os usuários veem a primeira resposta disponível para cada questão
+      const shouldMapResponse = !responsesMap[answer.question_id]
 
       if (shouldMapResponse) {
         let displayValue = answer.value || ""

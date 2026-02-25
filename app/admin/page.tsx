@@ -47,12 +47,6 @@ export default async function AdminPanelPage() {
       .order("updated_at", { ascending: true })
       .limit(5000)
 
-    console.log("[v0] Admin recentAnswers count:", recentAnswers?.length)
-    if (recentAnswers && recentAnswers.length > 0) {
-      console.log("[v0] Admin first answer sample:", JSON.stringify(recentAnswers[0]))
-      console.log("[v0] Admin last answer sample:", JSON.stringify(recentAnswers[recentAnswers.length - 1]))
-    }
-
     const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => {
       // Use the most recent date between created_at and updated_at
       const createdDate = a.created_at?.split("T")[0] || ""
@@ -63,13 +57,6 @@ export default async function AdminPanelPage() {
         company_id: a.company_id,
       }
     })
-
-    // Debug: count by date
-    const debugDateCounts = new Map<string, number>()
-    for (const a of recentAnswersWithCompany) {
-      debugDateCounts.set(a.date, (debugDateCounts.get(a.date) || 0) + 1)
-    }
-    console.log("[v0] Admin recentAnswers by date:", JSON.stringify(Object.fromEntries(debugDateCounts)))
 
     const { data: assignmentsData } = await adminClient
       .from("book_assignments")
@@ -221,6 +208,12 @@ export default async function AdminPanelPage() {
     .order("updated_at", { ascending: true })
     .limit(5000)
 
+  console.log("[v0] Gestor recentAnswers count:", recentAnswers?.length, "companyIds:", companyIds.length)
+  if (recentAnswers && recentAnswers.length > 0) {
+    console.log("[v0] Gestor first:", JSON.stringify(recentAnswers[0]))
+    console.log("[v0] Gestor last:", JSON.stringify(recentAnswers[recentAnswers.length - 1]))
+  }
+
   const recentAnswersWithCompany = (recentAnswers || []).map((a: any) => {
     const createdDate = a.created_at?.split("T")[0] || ""
     const updatedDate = a.updated_at?.split("T")[0] || ""
@@ -230,6 +223,14 @@ export default async function AdminPanelPage() {
       company_id: a.company_id,
     }
   })
+
+  // Debug: count by activity date
+  const debugCounts = new Map<string, number>()
+  for (const a of recentAnswersWithCompany) {
+    debugCounts.set(a.date, (debugCounts.get(a.date) || 0) + 1)
+  }
+  const sortedDates = [...debugCounts.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 10)
+  console.log("[v0] Gestor top 10 dates:", JSON.stringify(sortedDates))
 
   // Per-user progress
   const userIds = [...new Set(assignments.map((a: any) => a.user_id).filter(Boolean))]

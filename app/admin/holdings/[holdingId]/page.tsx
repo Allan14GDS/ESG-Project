@@ -63,11 +63,32 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
     )
   }
 
-  // Fetch all cadernos (book templates) for export functionality
-  const { data: cadernos } = await adminClient
-    .from("book_templates")
-    .select("id, name")
-    .order("name")
+  // Fetch cadernos assigned to each company via book_assignments
+  const companyIds = companies.map((c) => c.id)
+  const { data: assignments } = await adminClient
+    .from("book_assignments")
+    .select("company_id, caderno_id, book_templates(id, name)")
+    .in("company_id", companyIds.length > 0 ? companyIds : ["__none__"])
+
+  // Build a map of company_id -> unique cadernos assigned to that company
+  const companyCadernosMap: Record<string, { id: string; name: string }[]> = {}
+  for (const assignment of assignments || []) {
+    const compId = assignment.company_id
+    if (!compId) continue
+    const template = assignment.book_templates as any
+    if (!template?.id) continue
+    if (!companyCadernosMap[compId]) {
+      companyCadernosMap[compId] = []
+    }
+    // Avoid duplicates
+    if (!companyCadernosMap[compId].some((c) => c.id === template.id)) {
+      companyCadernosMap[compId].push({ id: template.id, name: template.name })
+    }
+  }
+  // Sort cadernos by name for each company
+  for (const compId of Object.keys(companyCadernosMap)) {
+    companyCadernosMap[compId].sort((a, b) => a.name.localeCompare(b.name))
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -192,7 +213,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
                           <ExportCompanyDataButton
                             companyId={company.id}
                             companyName={company.name}
-                            cadernos={cadernos || []}
+                            cadernos={companyCadernosMap[company.id] || []}
                           />
                           <DeleteCompanyButton
                             companyId={company.id}

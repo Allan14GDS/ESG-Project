@@ -711,15 +711,7 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
             Sair
           </Button>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs font-medium whitespace-nowrap">
-                Demo Platform
-              </Badge>
-              <Badge className="text-xs font-medium bg-primary text-primary-foreground whitespace-nowrap">
-                GRI 2021
-              </Badge>
-            </div>
+          <div className="flex items-center justify-end">
             {open && <ThemeToggle />}
           </div>
 

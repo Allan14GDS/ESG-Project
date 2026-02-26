@@ -160,7 +160,24 @@ export async function POST(request: NextRequest) {
     for (const junction of questions) {
       const question = questionDetails?.find((q: any) => q.id === junction.question_template_id)
       const template = templateDetails?.find((t: any) => t.id === junction.book_template_id)
-      
+      const metadata = (question?.metadata || {}) as any
+
+      // Extract metadata fields for enriched export columns
+      const metadataColumns = {
+        "Ordem": junction.sort_order || "",
+        "Framework / ANEEL": metadata.framework_aneel || metadata.framework_2 || "",
+        "Sub-framework ANEEL": metadata.sub_framework_aneel || metadata.sub_framework_2 || "",
+        "Framework / IFRS": metadata.framework_ifrs || "",
+        "Sub-framework / IFRS": metadata.sub_framework_ifrs || "",
+        "Framework / GRI": metadata.framework_gri || metadata.framework_1 || "",
+        "Sub-framework / GRI": metadata.sub_framework_gri || metadata.sub_framework_1 || "",
+        "Disclosure": metadata.disclosure || "",
+      }
+      const metadataColumnsAfter = {
+        "Evidências (POR DISCLOSURE)": metadata.evidencias || "",
+        "OBS DE NÃO APLICÁVEL": metadata.obs || "",
+      }
+
       // Find answers for this question across all companies
       const answersForQuestion = answers?.filter(
         (a: any) => a.question_id === junction.question_template_id && a.template_id === junction.book_template_id
@@ -172,8 +189,10 @@ export async function POST(request: NextRequest) {
           Holding: holdingName,
           Empresa: company.name,
           Caderno: template?.name || "",
+          ...metadataColumns,
           "Nome da Questão": question?.label || "",
           "Tipo de Questão": question?.type || "",
+          ...metadataColumnsAfter,
           "Resposta do Usuário": "",
           "Não Aplicável": "Não",
           "Observação de Revisão": "",
@@ -196,8 +215,10 @@ export async function POST(request: NextRequest) {
             Holding: holdingName,
             Empresa: companyName,
             Caderno: template?.name || "",
+            ...metadataColumns,
             "Nome da Questão": question?.label || "",
             "Tipo de Questão": question?.type || "",
+            ...metadataColumnsAfter,
             "Resposta do Usuário": answer?.value || "",
             "Não Aplicável": notApplicable ? "Sim" : "Não",
             "Observação de Revisão": reviewObservation,

@@ -56,6 +56,7 @@ import Link from "next/link"
 import { toast } from "sonner"
 import { updateBookTemplate, deleteBookTemplate } from "@/app/actions/template-actions"
 import { ImportCsvButton } from "@/components/questions/import-csv-button"
+import { Badge } from "@/components/ui/badge"
 
 import {
   closestCenter,
@@ -236,7 +237,7 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
       disclosure: string
       evidencia: string
       obs: string
-      sub_frameworks: string[]
+      sub_frameworks: Array<{ framework: string; subFramework: string }>
     }
   }>({
     label: "",
@@ -245,7 +246,7 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
       disclosure: "",
       evidencia: "",
       obs: "",
-      sub_frameworks: [""],
+      sub_frameworks: [{ framework: "", subFramework: "" }],
     },
   })
 
@@ -572,7 +573,7 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
         disclosure: "",
         evidencia: "",
         obs: "",
-        sub_frameworks: [""],
+        sub_frameworks: [{ framework: "", subFramework: "" }],
       },
     })
     setIsEditingQuestion(false)
@@ -585,30 +586,83 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
     // Use metadata_v2 if available, otherwise fallback to metadata
     const meta = question.metadata_v2 || question.metadata || {}
 
-    // Handle sub_frameworks with robust fallback logic
-    let subFrameworks = [""]
+    // Build framework pairs from metadata
+    let frameworkPairs: Array<{ framework: string; subFramework: string }> = []
 
-    // 1. Try to get from standard object structure { [templateId]: string[] }
-    if (meta.sub_frameworks && !Array.isArray(meta.sub_frameworks) && typeof meta.sub_frameworks === 'object') {
-      subFrameworks = meta.sub_frameworks[templateId] || [""]
-    }
-    // 2. Try legacy array of objects [ { framework, subFramework } ]
-    else if (Array.isArray(meta.sub_frameworks)) {
-      // Filter for current template name if possible, or just map all values if generic
-      // For now, we'll try to map everything as a fallback
-      const mapped = meta.sub_frameworks.map((sf: any) =>
-        typeof sf === 'object' ? sf.subFramework || sf.sub_framework || "" : sf
-      ).filter(Boolean)
-      if (mapped.length > 0) subFrameworks = mapped
-    }
-    // 3. Try flat legacy fields if still empty
-    if ((!subFrameworks || subFrameworks.length === 0 || subFrameworks[0] === "") && (meta.sub_framework_1 || meta.sub_framework_2)) {
-      const legacy = [meta.sub_framework_1, meta.sub_framework_2].filter(Boolean)
-      if (legacy.length > 0) subFrameworks = legacy
+    // 1. Try legacy_sub_frameworks (array of objects from previous edits)
+    if (Array.isArray(meta.legacy_sub_frameworks) && meta.legacy_sub_frameworks.length > 0) {
+      frameworkPairs = meta.legacy_sub_frameworks
+        .filter((sf: any) => typeof sf === 'object' && (sf.framework || sf.subFramework || sf.sub_framework))
+        .map((sf: any) => ({
+          framework: sf.framework || "",
+          subFramework: sf.subFramework || sf.sub_framework || "",
+        }))
     }
 
-    // Ensure it's an array for the UI
-    if (!Array.isArray(subFrameworks) || subFrameworks.length === 0) subFrameworks = [""]
+    // 2. Try sub_frameworks as array of objects
+    if (frameworkPairs.length === 0 && Array.isArray(meta.sub_frameworks)) {
+      frameworkPairs = meta.sub_frameworks
+        .filter((sf: any) => typeof sf === 'object' && (sf.framework || sf.subFramework || sf.sub_framework))
+        .map((sf: any) => ({
+          framework: sf.framework || "",
+          subFramework: sf.subFramework || sf.sub_framework || "",
+        }))
+    }
+
+    // 3. Try named framework fields (framework_gri, framework_aneel, framework_ifrs)
+    if (frameworkPairs.length === 0) {
+      const namedFields = [
+        { fw: "framework_gri", sub: "sub_framework_gri" },
+        { fw: "framework_aneel", sub: "sub_framework_aneel" },
+        { fw: "framework_ifrs", sub: "sub_framework_ifrs" },
+      ]
+      for (const nf of namedFields) {
+        if (meta[nf.fw]) {
+          frameworkPairs.push({
+            framework: meta[nf.fw],
+            subFramework: meta[nf.sub] || "",
+          })
+        }
+      }
+    }
+
+    // 4. Try generic framework_1/framework_2 + sub_framework_1/sub_framework_2
+    if (frameworkPairs.length === 0) {
+      for (let i = 1; i <= 2; i++) {
+        const fw = meta[`framework_${i}`]
+        const sub = meta[`sub_framework_${i}`]
+        if (fw) {
+          frameworkPairs.push({ framework: fw, subFramework: sub || "" })
+        }
+      }
+    }
+
+    // 5. Fallback: if sub_frameworks is a template-keyed object { [templateId]: string[] }
+    if (frameworkPairs.length === 0 && meta.sub_frameworks && !Array.isArray(meta.sub_frameworks) && typeof meta.sub_frameworks === 'object') {
+      const templateSubs = meta.sub_frameworks[templateId]
+      if (Array.isArray(templateSubs)) {
+        templateSubs.forEach((sub: string) => {
+          if (sub) frameworkPairs.push({ framework: "", subFramework: sub })
+        })
+      }
+    }
+
+    // Ensure at least one empty pair for the UI
+    if (frameworkPairs.length === 0) frameworkPairs = [{ framework: "", subFramework: "" }]
+
+    // Also merge named frameworks that aren't already in the array
+    const namedFws = [
+      { fw: "framework_gri", sub: "sub_framework_gri" },
+      { fw: "framework_aneel", sub: "sub_framework_aneel" },
+      { fw: "framework_ifrs", sub: "sub_framework_ifrs" },
+    ]
+    for (const nf of namedFws) {
+      const fw = meta[nf.fw]
+      const sfv = meta[nf.sub]
+      if (fw && !frameworkPairs.some(p => p.framework === fw && p.subFramework === (sfv || ""))) {
+        frameworkPairs.push({ framework: fw, subFramework: sfv || "" })
+      }
+    }
 
 
     // Map database types (English) back to frontend types (Portuguese)
@@ -635,7 +689,7 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
         disclosure: disclosureValue,
         evidencia: meta.evidencia || meta.evidencias || "",
         obs: meta.obs || meta.obs_nao_aplicavel || "",
-        sub_frameworks: subFrameworks,
+        sub_frameworks: frameworkPairs,
       },
     })
     setIsEditingQuestion(true)
@@ -672,46 +726,88 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
 
       const dbType = saveTypeMapping[newQuestion.type] || newQuestion.type
 
+      // Filter out empty framework pairs
+      const filteredPairs = newQuestion.metadata.sub_frameworks.filter(
+        (p) => p.framework.trim() !== "" || p.subFramework.trim() !== ""
+      )
+      const frameworkPairsToSave = filteredPairs.length > 0 ? filteredPairs : []
+
+      // Build named framework fields for export compatibility
+      const namedFrameworkFields: Record<string, string> = {
+        framework_gri: "", sub_framework_gri: "",
+        framework_aneel: "", sub_framework_aneel: "",
+        framework_ifrs: "", sub_framework_ifrs: "",
+      }
+      frameworkPairsToSave.forEach((pair) => {
+        const name = (pair.framework || "").toUpperCase().trim()
+        const sub = pair.subFramework || ""
+        if (name.includes("GRI")) {
+          namedFrameworkFields.framework_gri = pair.framework || ""
+          namedFrameworkFields.sub_framework_gri = sub
+        } else if (name.includes("ANEEL")) {
+          namedFrameworkFields.framework_aneel = pair.framework || ""
+          namedFrameworkFields.sub_framework_aneel = sub
+        } else if (name.includes("IFRS")) {
+          namedFrameworkFields.framework_ifrs = pair.framework || ""
+          namedFrameworkFields.sub_framework_ifrs = sub
+        }
+      })
+
+      // Build generic framework_1/framework_2 fields
+      const genericFrameworkFields: Record<string, string> = {}
+      frameworkPairsToSave.forEach((pair, index) => {
+        const num = index + 1
+        if (num <= 2) {
+          genericFrameworkFields[`framework_${num}`] = pair.framework || ""
+          genericFrameworkFields[`sub_framework_${num}`] = pair.subFramework || ""
+        }
+      })
+      // Clear unused slots
+      if (!genericFrameworkFields.framework_1) genericFrameworkFields.framework_1 = ""
+      if (!genericFrameworkFields.sub_framework_1) genericFrameworkFields.sub_framework_1 = ""
+      if (!genericFrameworkFields.framework_2) genericFrameworkFields.framework_2 = ""
+      if (!genericFrameworkFields.sub_framework_2) genericFrameworkFields.sub_framework_2 = ""
+
       if (isEditingQuestion && selectedQuestion) {
         // Prepare merged metadata to avoid losing data for other templates
         const currentMetadata = selectedQuestion.metadata || {}
         const currentMetadataV2 = selectedQuestion.metadata_v2 || {}
 
-        // Handle legacy_sub_frameworks in v2
-        const legacySubFrameworks = currentMetadataV2.legacy_sub_frameworks || []
-
+        // For template-keyed sub_frameworks, convert pairs to string[] of subFramework values
+        const subFrameworkStrings = frameworkPairsToSave.map(p => p.subFramework).filter(Boolean)
         const existingSubFrameworks = currentMetadata.sub_frameworks || {}
 
-        // Ensure we handle sub_frameworks as an object map for v1
         const updatedSubFrameworks =
           typeof existingSubFrameworks === "object" && !Array.isArray(existingSubFrameworks)
-            ? { ...existingSubFrameworks, [templateId]: newQuestion.metadata.sub_frameworks }
-            : { [templateId]: newQuestion.metadata.sub_frameworks }
+            ? { ...existingSubFrameworks, [templateId]: subFrameworkStrings }
+            : { [templateId]: subFrameworkStrings }
 
-        // For v2 sub_frameworks, we also want the object map { templateId: string[] }
         const existingSubFrameworksV2 = currentMetadataV2.sub_frameworks || {}
         const updatedSubFrameworksV2 =
           typeof existingSubFrameworksV2 === "object" && !Array.isArray(existingSubFrameworksV2)
-            ? { ...existingSubFrameworksV2, [templateId]: newQuestion.metadata.sub_frameworks }
-            : { ...updatedSubFrameworks, [templateId]: newQuestion.metadata.sub_frameworks } // Fallback to v1 structure if v2 is empty/weird
+            ? { ...existingSubFrameworksV2, [templateId]: subFrameworkStrings }
+            : { [templateId]: subFrameworkStrings }
 
         // Standardize on plural 'evidencias' for consistent saving
         const mergedMetadata = {
           ...currentMetadata,
-          ...newQuestion.metadata,
-          // Handle both singular/plural to be safe
+          disclosure: newQuestion.metadata.disclosure,
           evidencias: newQuestion.metadata.evidencia,
           obs_nao_aplicavel: newQuestion.metadata.obs,
           sub_frameworks: updatedSubFrameworks,
+          ...namedFrameworkFields,
+          ...genericFrameworkFields,
         }
 
         const mergedMetadataV2 = {
           ...currentMetadataV2,
-          ...newQuestion.metadata,
+          disclosure: newQuestion.metadata.disclosure,
           evidencias: newQuestion.metadata.evidencia,
           obs_nao_aplicavel: newQuestion.metadata.obs,
           sub_frameworks: updatedSubFrameworksV2,
-          legacy_sub_frameworks: legacySubFrameworks, // Preserve legacy
+          legacy_sub_frameworks: frameworkPairsToSave, // Store full framework pairs
+          ...namedFrameworkFields,
+          ...genericFrameworkFields,
         }
 
         // Update existing question
@@ -736,19 +832,25 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
       }
 
       // Step 1: Create the question in book_questions
+      const subFrameworkStrings = frameworkPairsToSave.map(p => p.subFramework).filter(Boolean)
+
       const initialMetadata = {
-        ...newQuestion.metadata,
+        disclosure: newQuestion.metadata.disclosure,
         evidencias: newQuestion.metadata.evidencia,
         obs_nao_aplicavel: newQuestion.metadata.obs,
-        sub_frameworks: { [templateId]: newQuestion.metadata.sub_frameworks },
+        sub_frameworks: { [templateId]: subFrameworkStrings },
+        ...namedFrameworkFields,
+        ...genericFrameworkFields,
       }
 
       const initialMetadataV2 = {
-        ...newQuestion.metadata,
+        disclosure: newQuestion.metadata.disclosure,
         evidencias: newQuestion.metadata.evidencia,
         obs_nao_aplicavel: newQuestion.metadata.obs,
-        sub_frameworks: { [templateId]: newQuestion.metadata.sub_frameworks },
-        legacy_sub_frameworks: [],
+        sub_frameworks: { [templateId]: subFrameworkStrings },
+        legacy_sub_frameworks: frameworkPairsToSave,
+        ...namedFrameworkFields,
+        ...genericFrameworkFields,
       }
 
       const { data: createdQuestion, error: insertError } = await supabase
@@ -883,7 +985,7 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
       ...newQuestion,
       metadata: {
         ...newQuestion.metadata,
-        sub_frameworks: [...newQuestion.metadata.sub_frameworks, ""],
+        sub_frameworks: [...newQuestion.metadata.sub_frameworks, { framework: "", subFramework: "" }],
       },
     })
   }
@@ -900,9 +1002,9 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
     }
   }
 
-  const updateNewQuestionSubFramework = (index: number, value: string) => {
+  const updateNewQuestionSubFrameworkField = (index: number, field: 'framework' | 'subFramework', value: string) => {
     const updated = [...newQuestion.metadata.sub_frameworks]
-    updated[index] = value
+    updated[index] = { ...updated[index], [field]: value }
     setNewQuestion({
       ...newQuestion,
       metadata: {
@@ -1325,45 +1427,66 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
                 <p className="text-xs text-muted-foreground">Texto de observação para a pergunta</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Frameworks e Sub-frameworks</Label>
+                  <Label className="text-sm font-medium">Frameworks e Sub-frameworks</Label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addNewQuestionSubFramework}
-                    className="h-8 gap-1 bg-transparent"
+                    className="h-8 gap-1 text-xs bg-transparent"
                   >
                     <Plus className="h-3 w-3" />
-                    Adicionar Nível
+                    Adicionar Framework
                   </Button>
                 </div>
-                <div className="space-y-2">
-                  {newQuestion.metadata.sub_frameworks.map((subFramework, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={subFramework}
-                        onChange={(e) => updateNewQuestionSubFramework(index, e.target.value)}
-                        placeholder={`Ex: ${index === 0 ? "301" : index === 1 ? "Gestão de Materiais" : "Sub-categoria"}`}
-                        className="flex-1"
-                      />
-                      {newQuestion.metadata.sub_frameworks.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeNewQuestionSubFramework(index)}
-                          className="h-10 w-10 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                <div className="space-y-4">
+                  {newQuestion.metadata.sub_frameworks.map((pair, index) => (
+                    <Card key={index} className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-4 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <Badge variant="outline" className="text-xs">
+                            Framework {index + 1}
+                          </Badge>
+                          {newQuestion.metadata.sub_frameworks.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={() => removeNewQuestionSubFramework(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Nome do Framework</Label>
+                            <Input
+                              value={pair.framework}
+                              onChange={(e) => updateNewQuestionSubFrameworkField(index, 'framework', e.target.value)}
+                              placeholder="Ex: GRI, ANEEL, IFRS"
+                              className="h-9 text-sm focus-visible:ring-primary"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Sub-framework</Label>
+                            <Input
+                              value={pair.subFramework}
+                              onChange={(e) => updateNewQuestionSubFrameworkField(index, 'subFramework', e.target.value)}
+                              placeholder="Ex: 202, 301, Gestão de Materiais"
+                              className="h-9 text-sm focus-visible:ring-primary"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Hierarquia de categorias (ex: "301", "Gestão de Materiais"). Serão exibidas como label da questão.
+                  Cada framework é composto por um nome (ex: GRI, ANEEL) e um sub-framework (ex: 202, 301).
                 </p>
               </div>
             </div>

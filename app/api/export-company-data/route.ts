@@ -81,29 +81,55 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch all data needed for export
-    const { data: questions, error: questionsError } = await adminClient
-      .from("book_question_junction")
-      .select("question_template_id, book_template_id, sort_order")
-      .in("book_template_id", finalCadernoIds)
-      .order("book_template_id")
-      .order("sort_order")
+    // Fetch all data needed for export (paginated to handle >1000 junctions)
+    const questions: { question_template_id: string; book_template_id: string; sort_order: number }[] = []
+    const J_PAGE = 1000
+    let jOffset = 0
+    let jMore = true
+    while (jMore) {
+      const { data: jBatch, error: jError } = await adminClient
+        .from("book_question_junction")
+        .select("question_template_id, book_template_id, sort_order")
+        .in("book_template_id", finalCadernoIds)
+        .order("book_template_id")
+        .order("sort_order")
+        .range(jOffset, jOffset + J_PAGE - 1)
 
-    if (questionsError) {
-      console.error("Error fetching questions:", questionsError)
-      return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 })
+      if (jError) {
+        console.error("Error fetching questions:", jError)
+        return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 })
+      }
+
+      if (jBatch && jBatch.length > 0) {
+        questions.push(...jBatch)
+        jOffset += jBatch.length
+        jMore = jBatch.length === J_PAGE
+      } else {
+        jMore = false
+      }
     }
 
-    if (!questions || questions.length === 0) {
+    if (questions.length === 0) {
       return NextResponse.json({ error: "No questions found for selected cadernos" }, { status: 404 })
     }
 
-    // Fetch question details
+    // Fetch question details (paginated to avoid URL length limits with .in())
     const questionIds = [...new Set(questions.map((q: any) => q.question_template_id))]
-    const { data: questionDetails } = await adminClient
-      .from("book_questions")
-      .select("id, label, type, unique_identifier, metadata")
-      .in("id", questionIds)
+    const questionDetailsMap = new Map<string, any>()
+    const Q_PAGE = 500
+    for (let i = 0; i < questionIds.length; i += Q_PAGE) {
+      const batch = questionIds.slice(i, i + Q_PAGE)
+      const { data: qBatch } = await adminClient
+        .from("book_questions")
+        .select("id, label, type, unique_identifier, metadata, metadata_v2")
+        .in("id", batch)
+      if (qBatch) {
+        for (const q of qBatch) {
+          questionDetailsMap.set(q.id, q)
+        }
+      }
+    }
+    const questionDetails = Array.from(questionDetailsMap.values())
 
     // Fetch template details
     const { data: templateDetails } = await adminClient
@@ -160,7 +186,9 @@ export async function POST(request: NextRequest) {
     for (const junction of questions) {
       const question = questionDetails?.find((q: any) => q.id === junction.question_template_id)
       const template = templateDetails?.find((t: any) => t.id === junction.book_template_id)
-      const metadata = (question?.metadata || {}) as any
+      // Merge both metadata columns — v2 fields override v1 when present
+      // Using spread merge instead of || to avoid empty object {} being truthy
+      const metadata = { ...(question?.metadata || {}), ...(question?.metadata_v2 || {}) } as any
 
       // Extract metadata fields for enriched export columns
       const metadataColumns = {

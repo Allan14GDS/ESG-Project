@@ -8,6 +8,7 @@ import {
   Building2,
   TrendingUp,
   UserPlus,
+  Database,
 } from "lucide-react"
 import Link from "next/link"
 import { requireGestor } from "@/lib/auth-utils"
@@ -141,6 +142,12 @@ export default async function CommandCenterPage() {
       href: "/admin/users",
       icon: UserPlus,
       description: "Convidar e gerenciar usuarios",
+    },
+    {
+      label: "Migracao de Metadados",
+      href: "/admin/migration",
+      icon: Database,
+      description: "Enriquecer metadados das questoes com Excels",
     },
   ]
 

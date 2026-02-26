@@ -183,7 +183,11 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                     const obs = meta.obs || meta.obs_nao_aplicavel || ""
 
                     // Robust sub_frameworks extraction for the edit dialog
-                    let sub_frameworks = meta.sub_frameworks || meta.legacy_sub_frameworks || []
+                    // sub_frameworks can be:
+                    //   - Array format (legacy): [{ framework: "GRI", subFramework: "202" }]
+                    //   - Template-keyed format (new): { "template-uuid": ["202"] }
+                    // For the edit dialog, we need the array format
+                    let sub_frameworks = meta.legacy_sub_frameworks || meta.sub_frameworks || []
                     if (!Array.isArray(sub_frameworks)) {
                       sub_frameworks = []
                     }
@@ -192,6 +196,20 @@ export function AdminQuestionsTable({ questions, allTemplates }: AdminQuestionsT
                         { framework: meta.framework_1 || "", subFramework: meta.sub_framework_1 || "" },
                         ...(meta.framework_2 || meta.sub_framework_2 ? [{ framework: meta.framework_2 || "", subFramework: meta.sub_framework_2 || "" }] : [])
                       ]
+                    }
+
+                    // Merge named framework fields (framework_gri, framework_aneel, framework_ifrs) if not already in array
+                    const namedFws = [
+                      { name: "framework_gri", sub: "sub_framework_gri" },
+                      { name: "framework_aneel", sub: "sub_framework_aneel" },
+                      { name: "framework_ifrs", sub: "sub_framework_ifrs" },
+                    ]
+                    for (const nf of namedFws) {
+                      const fw = meta[nf.name]
+                      const sfv = meta[nf.sub]
+                      if (fw && !sub_frameworks.some((s: any) => s.framework === fw && s.subFramework === (sfv || ""))) {
+                        sub_frameworks = [...sub_frameworks, { framework: fw, subFramework: sfv || "" }]
+                      }
                     }
 
                     // Map English types to Portuguese labels

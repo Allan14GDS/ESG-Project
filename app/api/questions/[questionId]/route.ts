@@ -36,6 +36,29 @@ export async function PATCH(request: NextRequest, { params }: { params: { questi
     if (!metadataV2.framework_2) metadataV2.framework_2 = ""
     if (!metadataV2.sub_framework_2) metadataV2.sub_framework_2 = ""
 
+    // Map framework names to named fields (used by the export route)
+    const namedFrameworkFields: Record<string, string> = {
+      framework_gri: "", sub_framework_gri: "",
+      framework_aneel: "", sub_framework_aneel: "",
+      framework_ifrs: "", sub_framework_ifrs: "",
+    }
+
+    if (Array.isArray(frameworks)) {
+      frameworks.forEach((pair: any) => {
+        const name = (pair.framework || "").toUpperCase().trim()
+        const sub = pair.subFramework || pair.sub_framework || ""
+        if (name.includes("GRI")) {
+          namedFrameworkFields.framework_gri = pair.framework || ""
+          namedFrameworkFields.sub_framework_gri = sub
+        } else if (name.includes("ANEEL")) {
+          namedFrameworkFields.framework_aneel = pair.framework || ""
+          namedFrameworkFields.sub_framework_aneel = sub
+        } else if (name.includes("IFRS")) {
+          namedFrameworkFields.framework_ifrs = pair.framework || ""
+          namedFrameworkFields.sub_framework_ifrs = sub
+        }
+      })
+    }
 
     const { data, error } = await adminClient
       .from("book_questions")
@@ -47,8 +70,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { questi
           evidencias: body.evidencias,
           obs: body.obs_nao_aplicavel,
           sub_frameworks: body.sub_frameworks || [],
+          ...namedFrameworkFields,
         },
-        metadata_v2: metadataV2,
+        metadata_v2: { ...metadataV2, ...namedFrameworkFields },
         updated_at: new Date().toISOString(),
       })
       .eq("id", questionId)

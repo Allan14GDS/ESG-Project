@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, memo, useEffect } from "react"
-import { Pencil, Loader2, Plus, X } from "lucide-react"
+import { Pencil, Loader2, Plus, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 interface EditQuestionWithTemplatesButtonProps {
   question: {
@@ -288,50 +290,63 @@ export const EditQuestionWithTemplatesButton = memo(function EditQuestionWithTem
 
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-border/50 pb-3">
-                  <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Frameworks e Sub-frameworks</Label>
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Frameworks e Sub-frameworks</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Vincule frameworks e suas sub-categorias à questão</p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addFrameworkPair}
-                    className="h-8 gap-1 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                    className="h-8 gap-1 bg-transparent"
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-4 w-4" />
                     Adicionar Framework
                   </Button>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
                   {frameworkPairs.map((pair, index) => (
-                    <div key={index} className="space-y-4 rounded-xl border border-border/70 bg-muted/30 p-4 transition-all hover:bg-muted/50 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Framework {index + 1}</span>
-                        {frameworkPairs.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFrameworkPair(index)}
-                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 rounded-full"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                      <div className="space-y-3">
-                        <Input
-                          value={pair.framework}
-                          onChange={(e) => updateFrameworkPair(index, 'framework', e.target.value)}
-                          placeholder="Ex: GRI, SASB"
-                          className="h-9 text-sm focus-visible:ring-primary rounded-lg border-border/50"
-                        />
-                        <Input
-                          value={pair.subFramework}
-                          onChange={(e) => updateFrameworkPair(index, 'subFramework', e.target.value)}
-                          placeholder="Ex: 301, Gestão de Materiais"
-                          className="h-9 text-sm focus-visible:ring-primary rounded-lg border-border/50"
-                        />
-                      </div>
-                    </div>
+                    <Card key={index} className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-4 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <Badge variant="outline" className="text-xs">
+                            Framework {index + 1}
+                          </Badge>
+                          {frameworkPairs.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={() => removeFrameworkPair(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Nome do Framework</Label>
+                            <Input
+                              value={pair.framework}
+                              onChange={(e) => updateFrameworkPair(index, 'framework', e.target.value)}
+                              placeholder="Ex: GRI, ANEEL, IFRS"
+                              className="h-9 text-sm focus-visible:ring-primary"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Sub-framework</Label>
+                            <Input
+                              value={pair.subFramework}
+                              onChange={(e) => updateFrameworkPair(index, 'subFramework', e.target.value)}
+                              placeholder="Ex: 202, 301, Gestão de Materiais"
+                              className="h-9 text-sm focus-visible:ring-primary"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>

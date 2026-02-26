@@ -11,12 +11,7 @@ const nextConfig = {
   },
   webpack: (config, { dev }) => {
     if (dev) {
-      // Suppress the "Serializing big strings" warning by raising the threshold
-      // and reducing infrastructure log noise
-      config.cache = {
-        ...config.cache,
-        type: "memory",
-      }
+      // Reduce infrastructure log noise in dev mode
       config.infrastructureLogging = {
         ...config.infrastructureLogging,
         level: "error",

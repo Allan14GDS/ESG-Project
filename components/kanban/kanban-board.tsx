@@ -1,58 +1,108 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Clock, AlertTriangle } from 'lucide-react'
-import { kanbanSyncService, type KanbanCard, type KanbanStatus } from "@/lib/kanban-sync"
-import { KanbanCardDrawer } from "./kanban-card-drawer"
+import { useState } from "react";
+
+import { Card } from "@/components/ui/card";
+
+import { Badge } from "@/components/ui/badge";
+
+import { Progress } from "@/components/ui/progress";
+
+import { Clock, AlertTriangle } from "lucide-react";
+
+import {
+  kanbanSyncService,
+  type KanbanCard,
+  type KanbanStatus,
+} from "@/lib/kanban-sync";
+
+import { KanbanCardDrawer } from "./kanban-card-drawer";
 
 interface KanbanBoardProps {
-  cards: KanbanCard[]
-  onCardMove: (cardId: string, newStatus: KanbanStatus) => void
+  cards: KanbanCard[];
+
+  onCardMove: (cardId: string, newStatus: KanbanStatus) => void;
 }
 
 const COLUMNS = [
-  { status: "not-started" as KanbanStatus, title: "Não Iniciado", color: "bg-gray-100" },
-  { status: "draft" as KanbanStatus, title: "Rascunho", color: "bg-yellow-100" },
-  { status: "submitted" as KanbanStatus, title: "Submetido", color: "bg-blue-100" },
-  { status: "returned" as KanbanStatus, title: "Devolvido", color: "bg-red-100" },
-  { status: "validated" as KanbanStatus, title: "Validado", color: "bg-green-100" },
-]
+  {
+    status: "not-started" as KanbanStatus,
+
+    title: "Não Iniciado",
+
+    color: "bg-slate-200",
+  },
+
+  {
+    status: "draft" as KanbanStatus,
+
+    title: "Rascunho",
+
+    color: "bg-amber-200",
+  },
+
+  {
+    status: "submitted" as KanbanStatus,
+
+    title: "Submetido",
+
+    color: "bg-sky-200",
+  },
+
+  {
+    status: "returned" as KanbanStatus,
+
+    title: "Devolvido",
+
+    color: "bg-rose-200",
+  },
+
+  {
+    status: "validated" as KanbanStatus,
+
+    title: "Validado",
+
+    color: "bg-emerald-300",
+  },
+];
 
 export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
-  const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null)
-  const [draggingCard, setDraggingCard] = useState<string | null>(null)
-  const groupedCards = kanbanSyncService.groupCardsByStatus(cards)
+  const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
+
+  const [draggingCard, setDraggingCard] = useState<string | null>(null);
+
+  const groupedCards = kanbanSyncService.groupCardsByStatus(cards);
 
   const handleDragStart = (cardId: string) => {
-    setDraggingCard(cardId)
-  }
+    setDraggingCard(cardId);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
+    e.preventDefault();
+  };
 
   const handleDrop = (status: KanbanStatus) => {
     if (draggingCard) {
-      onCardMove(draggingCard, status)
-      setDraggingCard(null)
+      onCardMove(draggingCard, status);
+
+      setDraggingCard(null);
     }
-  }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-500"
+        return "bg-red-500";
+
       case "medium":
-        return "bg-yellow-500"
+        return "bg-yellow-500";
+
       default:
-        return "bg-green-500"
+        return "bg-green-500";
     }
-  }
+  };
 
   return (
     <>
@@ -65,8 +115,12 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
             onDrop={() => handleDrop(column.status)}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-sm">{column.title}</h3>
-              <Badge variant="secondary" className="text-xs">
+              <h3 className="font-bold text-xl">{column.title}</h3>
+
+              <Badge
+                variant="secondary"
+                className="text-base font-bold px-3 py-1"
+              >
                 {groupedCards[column.status].length}
               </Badge>
             </div>
@@ -87,9 +141,15 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                           <Badge variant="outline" className="text-xs shrink-0">
                             {card.griCode}
                           </Badge>
-                          <div className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(card.priority)}`} />
+
+                          <div
+                            className={`w-2 h-2 rounded-full shrink-0 ${getPriorityColor(card.priority)}`}
+                          />
                         </div>
-                        <h4 className="text-sm font-medium leading-tight line-clamp-2">{card.title}</h4>
+
+                        <h4 className="text-sm font-medium leading-tight line-clamp-2">
+                          {card.title}
+                        </h4>
                       </div>
                     </div>
 
@@ -99,19 +159,41 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3 shrink-0" />
+
                       <span>{card.deadline}</span>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="font-medium">Progresso</span>
-                        <span className="text-muted-foreground">{card.progress}%</span>
+
+                        <span className="text-muted-foreground">
+                          {card.progress}%
+                        </span>
                       </div>
+
                       <Progress value={card.progress} className="h-2" />
+
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Questões respondidas</span>
+
                         <span>
-                          {Math.round((card.progress / 100) * parseInt(card.tags.find(t => t.includes('questões'))?.split(' ')[0] || '0'))} de {card.tags.find(t => t.includes('questões'))?.split(' ')[0] || '0'}
+                          {Math.round(
+                            (card.progress / 100) *
+                              parseInt(
+                                card.tags
+
+                                  .find((t) => t.includes("questões"))
+
+                                  ?.split(" ")[0] || "0",
+                              ),
+                          )}{" "}
+                          de{" "}
+                          {card.tags
+
+                            .find((t) => t.includes("questões"))
+
+                            ?.split(" ")[0] || "0"}
                         </span>
                       </div>
                     </div>
@@ -119,6 +201,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                     {card.feedback && (
                       <div className="text-xs text-red-600 bg-red-50 p-2 rounded flex items-start gap-1">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+
                         <span className="line-clamp-2">{card.feedback}</span>
                       </div>
                     )}
@@ -126,7 +209,11 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                     {card.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {card.tags.slice(0, 2).map((tag, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
+                          <Badge
+                            key={i}
+                            variant="secondary"
+                            className="text-xs"
+                          >
                             {tag}
                           </Badge>
                         ))}
@@ -141,8 +228,12 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
       </div>
 
       {selectedCard && (
-        <KanbanCardDrawer card={selectedCard} open={!!selectedCard} onClose={() => setSelectedCard(null)} />
+        <KanbanCardDrawer
+          card={selectedCard}
+          open={!!selectedCard}
+          onClose={() => setSelectedCard(null)}
+        />
       )}
     </>
-  )
+  );
 }

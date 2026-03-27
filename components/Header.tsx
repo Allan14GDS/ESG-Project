@@ -1,0 +1,86 @@
+"use client";
+
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+// No Next.js, as imagens da pasta public são acedidas com o caminho absoluto:
+const logoLight = "/assets/logo-light.png";
+
+const navLinks = [
+  { label: "Sobre", href: "#sobre" },
+  { label: "Funcionalidades", href: "#funcionalidades" },
+  { label: "Jornada ESG", href: "#jornada" },
+  { label: "Metodologias", href: "#metodologias" },
+  { label: "Contato", href: "#contato" },
+];
+
+const Header = () => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+      <div className="container mx-auto flex items-center justify-between h-16 px-4 lg:px-8">
+        <Link href="/" className="flex items-center">
+          <img src={logoLight} alt="B.Kick" className="h-8" />
+        </Link>
+
+        <nav className="hidden md:flex items-center gap-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden md:block">
+          {/* Aqui está a ligação mágica para a página de login do B.Kick! */}
+          <Link href="/auth/login">
+            <Button className="rounded-full px-6 font-semibold">
+              Fazer Login
+            </Button>
+          </Link>
+        </div>
+
+        <button
+          className="md:hidden p-2"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          {mobileOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
+        </button>
+      </div>
+
+      {mobileOpen && (
+        <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-3">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="block text-sm font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setMobileOpen(false)}
+            >
+              {link.label}
+            </Link>
+          ))}
+          {/* O mesmo link para a versão mobile */}
+          <Link href="/auth/login" className="block mt-2">
+            <Button className="w-full rounded-full font-semibold">
+              Fazer Login
+            </Button>
+          </Link>
+        </div>
+      )}
+    </header>
+  );
+};
+
+export default Header;

@@ -27,12 +27,13 @@ const HeroSection = () => {
           muted
           loop
           playsInline
-          className="w-full h-full object-cover opacity-40 blur-[2px]"
+          className="w-full h-full object-cover opacity-20 blur-[2px]"
         >
           <source src={heroBgVideo} type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-r from-[hsl(220,30%,10%)]/90 via-[hsl(220,28%,14%)]/75 to-[hsl(160,82%,55%)]/15" />
         <div className="absolute inset-0 bg-gradient-to-b from-[hsl(220,30%,10%)]/60 via-transparent to-[hsl(220,30%,10%)]/80" />
+        <div className="absolute inset-0 bg-[hsl(220,30%,10%)]/65" />
       </div>
 
       {/* Grid lines */}

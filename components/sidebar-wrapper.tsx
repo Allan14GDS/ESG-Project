@@ -12,6 +12,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const [userEmail, setUserEmail] = useState<string>("")
   const [userName, setUserName] = useState<string>("")
   const [userRole, setUserRole] = useState<"user" | "holding_admin" | "admin_main">("user")
+  const [overallProgress, setOverallProgress] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
 
@@ -19,7 +20,8 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/signin") ||
     pathname.startsWith("/register") ||
-    pathname === "/" // Hide sidebar on homepage
+    pathname === "/" ||
+    pathname.startsWith("/solicitar-demonstracao")
 
   useEffect(() => {
     setIsMounted(true)
@@ -32,32 +34,37 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
         setUserEmail(DEMO_USER.email)
         setUserName(DEMO_USER.full_name)
         setUserRole(DEMO_USER.role)
+        setOverallProgress(0)
         setIsLoading(false)
         return
       }
 
       try {
-        const response = await fetch("/api/profile", {
-          signal: abortController.signal,
-        })
+        const [profileResponse, progressResponse] = await Promise.all([
+          fetch("/api/profile", { signal: abortController.signal }),
+          fetch("/api/progress", { signal: abortController.signal }),
+        ])
 
         if (abortController.signal.aborted) return
 
-        if (!response.ok) {
-          setIsLoading(false)
-          return
+        if (profileResponse.ok) {
+          const data = await profileResponse.json()
+          if (!abortController.signal.aborted) {
+            setUserEmail(data.email || "")
+            setUserName(data.full_name || data.email?.split("@")[0] || "Usuário")
+            setUserRole(data.role || "user")
+          }
         }
 
-        const data = await response.json()
-
-        if (abortController.signal.aborted) return
-
-        setUserEmail(data.email || "")
-        setUserName(data.full_name || data.email?.split("@")[0] || "Usuário")
-        setUserRole(data.role || "user")
+        if (progressResponse.ok) {
+          const progressData = await progressResponse.json()
+          if (!abortController.signal.aborted) {
+            setOverallProgress(progressData.percentage ?? 0)
+          }
+        }
       } catch (error: any) {
         if (!abortController.signal.aborted) {
-          console.error("[v0] Error fetching user data:", error?.message || error)
+          console.error("[v0] Error fetching sidebar data:", error?.message || error)
         }
       } finally {
         if (!abortController.signal.aborted) {
@@ -89,7 +96,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar userEmail={userEmail} userName={userName} userRole={userRole} />
+      <AppSidebar userEmail={userEmail} userName={userName} userRole={userRole} overallProgress={overallProgress} />
       <SidebarInset>
         <div className="flex items-center justify-between border-b p-4 md:hidden">
           <div className="flex items-center gap-3">

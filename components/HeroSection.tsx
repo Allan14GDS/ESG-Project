@@ -1,5 +1,6 @@
 import { ArrowRight, BarChart3, Shield, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 // No Next.js, os vídeos da pasta public são lidos assim:
 const heroBgVideo = "/assets/hero-bg-video.mp4";
@@ -69,7 +70,7 @@ const HeroSection = () => {
 
           <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.15] mb-6 text-white">
             Meça, aprimore e comunique seu{" "}
-            <span className="text-primary">desempenho ESG</span>
+            <span className="text-emerald-400">desempenho ESG</span>
           </h1>
 
           <p className="text-base text-white/60 max-w-2xl mb-10 leading-relaxed font-normal">
@@ -80,10 +81,13 @@ const HeroSection = () => {
 
           <div className="flex flex-wrap gap-4 mb-16">
             <Button
+              asChild
               size="lg"
               className="rounded-full px-8 font-semibold text-base gap-2"
             >
-              Solicitar Demonstração <ArrowRight className="w-5 h-5" />
+              <Link href="/solicitar-demonstracao">
+                Solicitar Demonstração <ArrowRight className="w-5 h-5" />
+              </Link>
             </Button>
             <Button
               size="lg"

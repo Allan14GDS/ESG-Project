@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import * as Collapsible from "@radix-ui/react-collapsible"
 import {
   Sidebar,
@@ -42,128 +42,10 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { employeeDataService } from "@/lib/employee-data"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from "@/components/theme-toggle"
 
-const progressService = {
-  calculateEmployeeDataProgress(): number {
-    const matrices = employeeDataService.getEmployeeMatrices()
-    const nonEmployeeWorkers = employeeDataService.getNonEmployeeWorkers()
-
-    let completedSections = 0
-    const totalSections = 2
-
-    if (matrices && matrices.length > 0) {
-      const hasData = matrices.some((matrix) => matrix.data.some((cell) => cell.count > 0))
-      if (hasData) completedSections++
-    }
-
-    if (
-      nonEmployeeWorkers &&
-      (nonEmployeeWorkers.contractors > 0 ||
-        nonEmployeeWorkers.freelancers > 0 ||
-        nonEmployeeWorkers.temporaryWorkers > 0)
-    ) {
-      completedSections++
-    }
-
-    return Math.round((completedSections / totalSections) * 100)
-  },
-
-  calculateOrganizationProgress(): number {
-    const orgData = typeof window !== "undefined" ? localStorage.getItem("esg-organization") : null
-
-    if (orgData) {
-      const parsed = JSON.parse(orgData)
-      if (parsed.legalName && parsed.cnpj) return 100
-      if (parsed.legalName || parsed.cnpj) return 50
-    }
-    return 0
-  },
-
-  calculateReportingPeriodProgress(): number {
-    const periodData = typeof window !== "undefined" ? localStorage.getItem("esg-reporting-period") : null
-
-    if (periodData) {
-      const parsed = JSON.parse(periodData)
-      if (parsed.startDate && parsed.endDate) return 100
-      if (parsed.startDate || parsed.endDate) return 50
-    }
-    return 0
-  },
-
-  calculateDisclosuresProgress(): number {
-    if (typeof window === "undefined") return 0
-
-    let totalQuestions = 0
-    let answeredQuestions = 0
-
-    for (let i = 1; i <= 30; i++) {
-      const disclosureId = `2-${i}`
-      const answersKey = `gri-answers-${disclosureId}`
-      const answersData = localStorage.getItem(answersKey)
-
-      if (answersData) {
-        try {
-          const answers = JSON.parse(answersData)
-          const questionKeys = Object.keys(answers)
-          totalQuestions += questionKeys.length
-
-          answeredQuestions += questionKeys.filter((key) => {
-            const value = answers[key]
-            return value !== null && value !== undefined && value !== ""
-          }).length
-        } catch (e) {
-          console.error("[v0] Error parsing answers for", disclosureId, e)
-        }
-      }
-    }
-
-    if (totalQuestions === 0) return 0
-    return Math.round((answeredQuestions / totalQuestions) * 100)
-  },
-
-  calculateGovernanceProgress(): number {
-    if (typeof window === "undefined") return 0
-
-    const govData = localStorage.getItem("esg-governance-data")
-    if (!govData) return 0
-
-    try {
-      const parsed = JSON.parse(govData)
-      let completedSections = 0
-      const totalSections = 4 // composition, policies, oversight, compensation
-
-      if (parsed.composition && parsed.composition.totalMembers > 0) completedSections++
-      if (parsed.policies && parsed.policies.length > 0) completedSections++
-      if (parsed.oversight && parsed.oversight.length > 0) completedSections++
-      if (parsed.compensation && parsed.compensation.hasPolicy) completedSections++
-
-      return Math.round((completedSections / totalSections) * 100)
-    } catch (e) {
-      return 0
-    }
-  },
-
-  calculateOverallProgress(): number {
-    const employeeProgress = this.calculateEmployeeDataProgress()
-    const orgProgress = this.calculateOrganizationProgress()
-    const periodProgress = this.calculateReportingPeriodProgress()
-    const disclosuresProgress = this.calculateDisclosuresProgress()
-    const governanceProgress = this.calculateGovernanceProgress()
-
-    const weightedProgress =
-      orgProgress * 0.15 +
-      periodProgress * 0.15 +
-      employeeProgress * 0.2 +
-      governanceProgress * 0.2 +
-      disclosuresProgress * 0.3
-
-    return Math.round(weightedProgress)
-  },
-}
 
 const defaultUserNavigation = [
   {
@@ -374,57 +256,14 @@ interface AppSidebarProps {
   userEmail: string
   userName: string
   userRole: string
+  overallProgress: number
 }
 
-export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
+export function AppSidebar({ userEmail, userName, userRole, overallProgress }: AppSidebarProps) {
   const { toast } = useToast()
   const router = useRouter()
   const pathname = usePathname()
   const { open } = useSidebar()
-
-  console.log("[v0] AppSidebar props:", { userEmail, userName, userRole })
-
-  const [realProgress, setRealProgress] = useState({
-    overall: 0,
-    employeeData: 0,
-    organization: 0,
-    reportingPeriod: 0,
-    disclosures: 0,
-    governance: 0,
-  })
-
-  useEffect(() => {
-    const calculateProgress = () => {
-      const overall = progressService.calculateOverallProgress()
-      const employeeData = progressService.calculateEmployeeDataProgress()
-      const organization = progressService.calculateOrganizationProgress()
-      const reportingPeriod = progressService.calculateReportingPeriodProgress()
-      const disclosures = progressService.calculateDisclosuresProgress()
-      const governance = progressService.calculateGovernanceProgress()
-
-      setRealProgress({
-        overall,
-        employeeData,
-        organization,
-        reportingPeriod,
-        disclosures,
-        governance,
-      })
-    }
-
-    calculateProgress()
-
-    const handleStorageChange = () => {
-      calculateProgress()
-    }
-    window.addEventListener("storage", handleStorageChange)
-    window.addEventListener("esg-data-updated", handleStorageChange)
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange)
-      window.removeEventListener("esg-data-updated", handleStorageChange)
-    }
-  }, [])
 
   const [commandCenterOpen, setCommandCenterOpen] = useState(true)
 
@@ -526,14 +365,24 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
         <div className="flex items-center gap-2 px-3 py-3 md:gap-3 md:px-4 md:py-4">
           {/* Collapsed: show symbol only; expanded: show horizontal lockup */}
           {open ? (
-            <Image
-              src="/logo-horizontal-navy.png"
-              alt="B.Kick"
-              width={120}
-              height={32}
-              className="h-8 w-auto object-contain dark:invert"
-              priority
-            />
+            <>
+              <Image
+                src="/assets/logo-light.png"
+                alt="B.Kick"
+                width={120}
+                height={32}
+                className="h-8 w-auto object-contain dark:hidden"
+                priority
+              />
+              <Image
+                src="/assets/logo-dark.png"
+                alt="B.Kick"
+                width={120}
+                height={32}
+                className="h-8 w-auto object-contain hidden dark:block"
+                priority
+              />
+            </>
           ) : (
             <Image
               src="/logo-symbol.png"
@@ -547,15 +396,13 @@ export function AppSidebar({ userEmail, userName, userRole }: AppSidebarProps) {
           {!open && <ThemeToggle />}
         </div>
 
-        {userRole !== "holding_admin" && (
-          <div className="px-3 pb-3 md:px-4 md:pb-4">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="font-medium text-xs md:text-sm">Progresso Geral</span>
-              <span className="font-bold text-primary text-sm md:text-base">{realProgress.overall}%</span>
-            </div>
-            <Progress value={realProgress.overall} className="h-2 md:h-2.5" />
+        <div className="px-3 pb-3 md:px-4 md:pb-4">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="font-medium text-xs md:text-sm">Progresso Geral</span>
+            <span className="font-bold text-primary text-sm md:text-base">{overallProgress}%</span>
           </div>
-        )}
+          <Progress value={overallProgress} className="h-2 md:h-2.5" />
+        </div>
 
         <div className="px-3 pb-3 md:px-4 md:pb-4">
           <Card className="p-3 md:p-4 bg-muted/50">

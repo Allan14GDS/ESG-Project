@@ -102,11 +102,11 @@ export default function LoginPage() {
           {/* Alteração: Envolvendo o logo com Link para retornar à Landing Page */}
           <Link href="/">
             <Image
-              src="/logo-horizontal-navy.png"
+              src="/assets/logo-dark.png"
               alt="B.Kick"
               width={140}
               height={40}
-              className="h-10 w-auto object-contain invert cursor-pointer hover:opacity-80 transition-opacity"
+              className="h-10 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity"
               priority
             />
           </Link>
@@ -175,11 +175,19 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8">
             <Image
-              src="/logo-vertical-navy.png"
+              src="/assets/logo-light.png"
               alt="B.Kick"
-              width={100}
-              height={100}
-              className="h-16 w-auto object-contain dark:invert"
+              width={120}
+              height={40}
+              className="h-10 w-auto object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/assets/logo-dark.png"
+              alt="B.Kick"
+              width={120}
+              height={40}
+              className="h-10 w-auto object-contain hidden dark:block"
               priority
             />
           </div>

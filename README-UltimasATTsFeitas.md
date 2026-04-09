@@ -41,4 +41,4 @@ Este documento sumariza as recentes implementações de UI/UX, arquitetura e ló
 
 - **Front-end:** Next.js (App Router), React, TypeScript.
 - **Estilização & UI:** Tailwind CSS, shadcn/ui.
-- **BaaS & Backend:** Supabase, integrações FastAPI.
+- **BaaS & Backend:** Supabase, integrações FastAPI...

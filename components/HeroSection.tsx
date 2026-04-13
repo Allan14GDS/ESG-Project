@@ -64,7 +64,7 @@ const HeroSection = () => {
 
       <div className="container mx-auto px-4 lg:px-8 py-20 lg:py-32 relative z-10">
         <div className="max-w-3xl">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 text-primary text-sm font-medium mb-8">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-400/10 text-emerald-400 text-sm font-medium mb-8">
             <Link2 className="w-4 h-4" />
             Software de Sustentabilidade
           </span>
@@ -102,7 +102,7 @@ const HeroSection = () => {
           <div className="flex flex-wrap gap-12 md:gap-20">
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
-                <stat.icon className="w-6 h-6 text-primary mx-auto mb-2" />
+                <stat.icon className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
                 <div className="text-3xl font-extrabold text-white">
                   {stat.value}
                 </div>

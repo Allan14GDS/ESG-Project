@@ -389,7 +389,7 @@ export function AppSidebar({ userEmail, userName, userRole, overallProgress }: A
               alt="B.Kick"
               width={32}
               height={32}
-              className="h-8 w-8 object-contain shrink-0"
+              className="h-8 w-8 object-contain shrink-0 dark:brightness-0 dark:invert"
               priority
             />
           )}

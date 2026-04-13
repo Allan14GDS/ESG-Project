@@ -32,7 +32,7 @@ const COLUMNS = [
 
     title: "Não Iniciado",
 
-    color: "bg-slate-200",
+    color: "bg-slate-200 dark:bg-slate-800",
   },
 
   {
@@ -40,7 +40,7 @@ const COLUMNS = [
 
     title: "Rascunho",
 
-    color: "bg-amber-200",
+    color: "bg-amber-200 dark:bg-amber-900/40",
   },
 
   {
@@ -48,7 +48,7 @@ const COLUMNS = [
 
     title: "Submetido",
 
-    color: "bg-sky-200",
+    color: "bg-sky-200 dark:bg-sky-900/40",
   },
 
   {
@@ -56,7 +56,7 @@ const COLUMNS = [
 
     title: "Devolvido",
 
-    color: "bg-rose-200",
+    color: "bg-rose-200 dark:bg-rose-900/40",
   },
 
   {
@@ -64,7 +64,7 @@ const COLUMNS = [
 
     title: "Validado",
 
-    color: "bg-emerald-300",
+    color: "bg-emerald-300 dark:bg-emerald-900/40",
   },
 ];
 
@@ -115,7 +115,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
             onDrop={() => handleDrop(column.status)}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-xl">{column.title}</h3>
+              <h3 className="font-bold text-xl dark:text-gray-100">{column.title}</h3>
 
               <Badge
                 variant="secondary"
@@ -132,7 +132,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                   draggable
                   onDragStart={() => handleDragStart(card.id)}
                   onClick={() => setSelectedCard(card)}
-                  className="p-3 bg-white shadow-sm hover:shadow-md transition-all cursor-move hover:scale-[1.02]"
+                  className="p-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all cursor-move hover:scale-[1.02]"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -147,7 +147,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                           />
                         </div>
 
-                        <h4 className="text-sm font-medium leading-tight line-clamp-2">
+                        <h4 className="text-sm font-medium leading-tight line-clamp-2 dark:text-gray-100">
                           {card.title}
                         </h4>
                       </div>
@@ -199,7 +199,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                     </div>
 
                     {card.feedback && (
-                      <div className="text-xs text-red-600 bg-red-50 p-2 rounded flex items-start gap-1">
+                        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded flex items-start gap-1">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
 
                         <span className="line-clamp-2">{card.feedback}</span>

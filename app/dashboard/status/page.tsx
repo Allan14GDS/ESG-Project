@@ -175,23 +175,23 @@ export default function StatusPage() {
             
             <div className="grid grid-cols-5 gap-4 mt-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-700">{stats.notStarted}</div>
+                <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">{stats.notStarted}</div>
                 <div className="text-xs text-muted-foreground">Não Iniciado</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-700">{stats.draft}</div>
+                <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{stats.draft}</div>
                 <div className="text-xs text-muted-foreground">Rascunho</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-700">{stats.submitted}</div>
+                <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats.submitted}</div>
                 <div className="text-xs text-muted-foreground">Submetido</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-700">{stats.returned}</div>
+                <div className="text-2xl font-bold text-red-700 dark:text-red-400">{stats.returned}</div>
                 <div className="text-xs text-muted-foreground">Devolvido</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-700">{stats.validated}</div>
+                <div className="text-2xl font-bold text-green-700 dark:text-green-400">{stats.validated}</div>
                 <div className="text-xs text-muted-foreground">Validado</div>
               </div>
             </div>

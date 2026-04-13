@@ -1,4 +1,3 @@
-const logoLight = "/assets/logo-light.png";
 
 const Footer = () => {
   return (
@@ -6,7 +5,8 @@ const Footer = () => {
       <div className="container mx-auto px-4 lg:px-8 py-16">
         <div className="grid md:grid-cols-3 gap-12">
           <div>
-            <img src={logoLight} alt="B.Kick" className="h-8 mb-4" />
+            <img src="/assets/logo-light.png" alt="B.Kick" className="h-8 mb-4 dark:hidden" />
+            <img src="/assets/logo-dark.png" alt="B.Kick" className="h-8 mb-4 hidden dark:block" />
             <p className="text-hero-foreground/50 text-sm leading-relaxed max-w-xs">
               Plataforma de software para gestão de sustentabilidade
               corporativa. Meça, aprimore e comunique o desempenho ESG da sua

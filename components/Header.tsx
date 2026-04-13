@@ -4,9 +4,8 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-// No Next.js, as imagens da pasta public são acedidas com o caminho absoluto:
-const logoLight = "/assets/logo-light.png";
 
 const navLinks = [
   { label: "Sobre", href: "#sobre" },
@@ -20,10 +19,11 @@ const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+    <header className="relative sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
       <div className="container mx-auto flex items-center justify-between h-16 px-4 lg:px-8">
         <Link href="/" className="flex items-center">
-          <img src={logoLight} alt="B.Kick" className="h-8" />
+          <img src="/assets/logo-light.png" alt="B.Kick" className="h-8 dark:hidden" />
+          <img src="/assets/logo-dark.png" alt="B.Kick" className="h-8 hidden dark:block" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
@@ -38,7 +38,7 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-4">
           {/* Aqui está a ligação mágica para a página de login do B.Kick! */}
           <Link href="/auth/login">
             <Button className="rounded-full px-6 font-semibold">
@@ -47,16 +47,22 @@ const Header = () => {
           </Link>
         </div>
 
-        <button
-          className="md:hidden p-2"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
-        </button>
+        <div className="md:hidden flex items-center gap-1">
+          <button
+            className="p-2"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+        <ThemeToggle />
       </div>
 
       {mobileOpen && (

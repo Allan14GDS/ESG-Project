@@ -21,7 +21,8 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/signin") ||
     pathname.startsWith("/register") ||
     pathname === "/" ||
-    pathname.startsWith("/solicitar-demonstracao")
+    pathname.startsWith("/solicitar-demonstracao") ||
+    pathname.startsWith("/conheca-a-plataforma")
 
   useEffect(() => {
     setIsMounted(true)

@@ -91,11 +91,14 @@ const HeroSection = () => {
               </Link>
             </Button>
             <Button
+              asChild
               size="lg"
               variant="outline"
               className="rounded-full px-8 font-semibold text-base border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent"
             >
-              Conhecer a Plataforma
+              <Link href="/conheca-a-plataforma">
+                Conhecer a Plataforma
+              </Link>
             </Button>
           </div>
 

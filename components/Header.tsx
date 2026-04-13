@@ -38,8 +38,7 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-4">
-          {/* Aqui está a ligação mágica para a página de login do B.Kick! */}
+        <div className="hidden md:flex items-center gap-3">
           <Link href="/auth/login">
             <Button className="rounded-full px-6 font-semibold">
               Fazer Login
@@ -47,7 +46,13 @@ const Header = () => {
           </Link>
         </div>
 
+        {/* ThemeToggle fixo no canto direito — desktop */}
+        <div className="hidden md:block absolute right-4 top-1/2 -translate-y-1/2">
+          <ThemeToggle />
+        </div>
+
         <div className="md:hidden flex items-center gap-1">
+          <ThemeToggle />
           <button
             className="p-2"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -59,10 +64,6 @@ const Header = () => {
             )}
           </button>
         </div>
-      </div>
-
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
-        <ThemeToggle />
       </div>
 
       {mobileOpen && (

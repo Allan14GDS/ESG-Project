@@ -1,13 +1,13 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { isDemoMode, DEMO_USER } from "@/lib/demo-mode"
 
-export function SidebarWrapper({ children }: { children: React.ReactNode }) {
+function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const selectedYear = Number(searchParams.get("year")) || new Date().getFullYear()
@@ -110,5 +110,19 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+export function SidebarWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <div>Carregando...</div>
+        </div>
+      }
+    >
+      <SidebarWrapperInner>{children}</SidebarWrapperInner>
+    </Suspense>
   )
 }

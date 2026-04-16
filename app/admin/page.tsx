@@ -6,7 +6,15 @@ import { GestorDashboardClient } from "@/components/gestor/gestor-dashboard-clie
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export default async function AdminPanelPage() {
+export default async function AdminPanelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
+  const resolvedParams = await searchParams
+  const yearParam = resolvedParams?.year
+  const targetYear = yearParam ? parseInt(yearParam) : new Date().getFullYear()
+
   // Allow both admin_main and holding_admin
   const profile = await requireGestor()
   const isAdmin = profile.role === "admin_main"
@@ -88,7 +96,7 @@ export default async function AdminPanelPage() {
 
     if (allCompanyIds.length > 0 || allOrgIds.length > 0) {
       const { data: answerCounts } = await adminClient
-        .rpc("get_gestor_answer_counts", { p_company_ids: allCompanyIds, p_org_ids: allOrgIds })
+        .rpc("get_gestor_answer_counts", { p_company_ids: allCompanyIds, p_org_ids: allOrgIds, p_year: targetYear })
       if (answerCounts) {
         for (const row of answerCounts) {
           answerCountsMap.set(`${row.template_id}_${row.company_id}`, Number(row.answered_count))
@@ -123,6 +131,7 @@ export default async function AdminPanelPage() {
             totalQuestions={totalQuestions}
             totalUsers={totalUsers}
             totalAnswers={totalAnswers}
+            initialYear={targetYear}
           />
         </div>
       </div>
@@ -179,7 +188,7 @@ export default async function AdminPanelPage() {
   const answerCountsMap = new Map<string, number>()
   if (companyIds.length > 0 || holdingIds.length > 0) {
     const { data: answerCounts } = await adminClient
-      .rpc("get_gestor_answer_counts", { p_company_ids: companyIds, p_org_ids: holdingIds })
+      .rpc("get_gestor_answer_counts", { p_company_ids: companyIds, p_org_ids: holdingIds, p_year: targetYear })
     if (answerCounts) {
       for (const row of answerCounts) {
         answerCountsMap.set(`${row.template_id}_${row.company_id}`, Number(row.answered_count))
@@ -350,6 +359,7 @@ export default async function AdminPanelPage() {
           userCadernoDetailEntries={userCadernoDetailEntries}
           totalUsers={totalUsers}
           totalAnswers={totalAnswers}
+          initialYear={targetYear}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, Fragment } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -22,6 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
   BookMarked,
+  CalendarDays,
 } from "lucide-react"
 import { AdminDashboardCharts } from "@/components/admin/admin-dashboard-charts"
 
@@ -67,6 +69,7 @@ interface GestorDashboardClientProps {
   userCadernoDetailEntries?: UserCadernoDetailEntry[]
   totalUsers: number
   totalAnswers: number
+  initialYear: number
 }
 
 export function GestorDashboardClient({
@@ -81,11 +84,19 @@ export function GestorDashboardClient({
   userCadernoDetailEntries = [],
   totalUsers,
   totalAnswers,
+  initialYear,
 }: GestorDashboardClientProps) {
+  const router = useRouter()
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>("all")
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all")
+  const [selectedYear, setSelectedYear] = useState<string>(String(initialYear))
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
   const [userStatusFilter, setUserStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all")
+
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value)
+    router.push(`?year=${value}`)
+  }
 
   // Rebuild maps from serialized entries
   const answerCountsMap = useMemo(() => new Map(answerCountsEntries), [answerCountsEntries])
@@ -310,6 +321,19 @@ export function GestorDashboardClient({
                   ))}
                 </SelectContent>
               </Select>
+
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedYear} onValueChange={handleYearChange}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Ano de Referência" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2026">2026 (Atual)</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {isFiltered && (
                 <button

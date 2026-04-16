@@ -322,10 +322,12 @@ export default async function CadernosGestaoPage() {
       const companyIds = (companies || []).map((c: any) => c.id)
 
       if (companyIds.length > 0) {
+        const currentYear = new Date().getFullYear()
         const { data: counts, error: countsError } = await adminClient
           .rpc("get_gestor_answer_counts", {
             p_company_ids: companyIds,
-            p_org_ids: allowedOrgIds
+            p_org_ids: allowedOrgIds,
+            p_year: currentYear,
           })
 
         if (countsError) {

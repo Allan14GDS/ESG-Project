@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -19,6 +20,7 @@ import {
   AlertCircle,
   TrendingUp,
   Filter,
+  CalendarDays,
 } from "lucide-react"
 import { AdminDashboardCharts } from "@/components/admin/admin-dashboard-charts"
 
@@ -45,6 +47,7 @@ interface AdminDashboardClientProps {
   totalQuestions: number
   totalUsers: number
   totalAnswers: number
+  initialYear: number
 }
 
 export function AdminDashboardClient({
@@ -59,9 +62,17 @@ export function AdminDashboardClient({
   totalQuestions,
   totalUsers,
   totalAnswers,
+  initialYear,
 }: AdminDashboardClientProps) {
+  const router = useRouter()
   const [selectedHoldingId, setSelectedHoldingId] = useState<string>("all")
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all")
+  const [selectedYear, setSelectedYear] = useState<string>(String(initialYear))
+
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value)
+    router.push(`?year=${value}`)
+  }
 
   // Rebuild maps from serialized entries
   const answerCountsMap = useMemo(
@@ -243,6 +254,19 @@ export function AdminDashboardClient({
                   ))}
                 </SelectContent>
               </Select>
+
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedYear} onValueChange={handleYearChange}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Ano de Referência" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2026">2026 (Atual)</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {isFiltered && (
                 <button

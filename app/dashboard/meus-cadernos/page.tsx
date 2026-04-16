@@ -9,11 +9,19 @@ import { BookOpen, FileText, CheckCircle2, Clock, AlertCircle, AlertTriangle, Bu
 import { MeusCadernosClient } from "@/components/cadernos/meus-cadernos-client"
 import { DemoDashboard } from "@/components/demo-dashboard"
 import { DEMO_USER } from "@/lib/demo-mode"
+import { YearFilter } from "@/components/ui/year-filter"
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function MeusCadernosPage() {
+export default async function MeusCadernosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
+  const resolvedParams = await searchParams
+  const yearParam = resolvedParams?.year
+  const targetYear = yearParam ? parseInt(yearParam) : new Date().getFullYear()
   // Check for demo mode
   const hasSupabaseConfig = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -74,7 +82,8 @@ export default async function MeusCadernosPage() {
       const { data: counts, error: countsError } = await adminClient
         .rpc("get_gestor_answer_counts", {
           p_company_ids: companyIds,
-          p_org_ids: orgIds
+          p_org_ids: orgIds,
+          p_year: targetYear,
         })
 
       if (countsError) {
@@ -383,11 +392,14 @@ export default async function MeusCadernosPage() {
       <div className="mx-auto max-w-6xl px-6 py-12 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/50 bg-card">
-              <BookOpen className="h-6 w-6 text-primary" />
+          <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/50 bg-card">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Meus Cadernos</span>
             </div>
-            <span className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Meus Cadernos</span>
+            <YearFilter initialYear={targetYear} />
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Olá, {profile.full_name || profile.email}

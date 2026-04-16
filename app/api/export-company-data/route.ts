@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { companyId, cadernoIds, userId, includeAllHoldingCompanies, format } = body
+    const { companyId, cadernoIds, userId, includeAllHoldingCompanies, format, ano } = body
+    const exportYear: number = typeof ano === "number" ? ano : new Date().getFullYear()
 
     if (!companyId) {
       return NextResponse.json({ error: "Company ID is required" }, { status: 400 })
@@ -137,12 +138,13 @@ export async function POST(request: NextRequest) {
       .select("id, name, description")
       .in("id", finalCadernoIds)
 
-    // Fetch answers for selected companies
+    // Fetch answers for selected companies filtered by the requested year
     let answersQuery = adminClient
       .from("book_answers")
-      .select("question_id, template_id, value, status, evidence_url, value_jsonb, created_at, user_id, company_id")
+      .select("question_id, template_id, value, status, evidence_url, value_jsonb, created_at, user_id, company_id, ano_referencia")
       .in("company_id", companyIdsToExport)
       .in("template_id", finalCadernoIds)
+      .eq("ano_referencia", exportYear)
 
     // If filtering by user, only get their answers
     if (userId) {
@@ -214,6 +216,7 @@ export async function POST(request: NextRequest) {
       // If no answers for this question, still add a row with empty values
       if (answersForQuestion.length === 0) {
         exportData.push({
+          "Ano de Referência": exportYear,
           Holding: holdingName,
           Empresa: company.name,
           Caderno: template?.name || "",
@@ -240,6 +243,7 @@ export async function POST(request: NextRequest) {
           const reviewObservation = valueJsonb?.reviewObservation || ""
 
           exportData.push({
+            "Ano de Referência": answer?.ano_referencia ?? exportYear,
             Holding: holdingName,
             Empresa: companyName,
             Caderno: template?.name || "",

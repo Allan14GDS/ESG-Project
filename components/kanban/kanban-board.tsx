@@ -32,7 +32,7 @@ const COLUMNS = [
 
     title: "Não Iniciado",
 
-    color: "bg-slate-200 dark:bg-slate-800",
+    color: "bg-slate-200 dark:bg-zinc-900/50",
   },
 
   {
@@ -40,7 +40,7 @@ const COLUMNS = [
 
     title: "Rascunho",
 
-    color: "bg-amber-200 dark:bg-amber-900/40",
+    color: "bg-amber-200 dark:bg-amber-500/10",
   },
 
   {
@@ -48,7 +48,7 @@ const COLUMNS = [
 
     title: "Submetido",
 
-    color: "bg-sky-200 dark:bg-sky-900/40",
+    color: "bg-sky-200 dark:bg-sky-500/10",
   },
 
   {
@@ -56,7 +56,7 @@ const COLUMNS = [
 
     title: "Devolvido",
 
-    color: "bg-rose-200 dark:bg-rose-900/40",
+    color: "bg-rose-200 dark:bg-rose-500/10",
   },
 
   {
@@ -64,7 +64,7 @@ const COLUMNS = [
 
     title: "Validado",
 
-    color: "bg-emerald-300 dark:bg-emerald-900/40",
+    color: "bg-emerald-300 dark:bg-emerald-500/10",
   },
 ];
 
@@ -132,7 +132,7 @@ export function KanbanBoard({ cards, onCardMove }: KanbanBoardProps) {
                   draggable
                   onDragStart={() => handleDragStart(card.id)}
                   onClick={() => setSelectedCard(card)}
-                  className="p-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all cursor-move hover:scale-[1.02]"
+                  className="p-3 bg-white dark:bg-zinc-800 dark:border dark:border-zinc-700 shadow-sm hover:shadow-md transition-all cursor-move hover:scale-[1.02]"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">

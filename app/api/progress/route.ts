@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const yearParam = request.nextUrl.searchParams.get("year")
+  const targetYear = yearParam ? parseInt(yearParam) : new Date().getFullYear()
   try {
     const supabase = await createClient()
     const {
@@ -81,6 +83,7 @@ export async function GET() {
         ? adminClient.rpc("get_gestor_answer_counts", {
             p_company_ids: companyIds,
             p_org_ids: orgIds,
+            p_year: targetYear,
           })
         : Promise.resolve({ data: [], error: null }),
 

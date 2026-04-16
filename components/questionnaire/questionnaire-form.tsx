@@ -60,6 +60,8 @@ interface QuestionnaireFormProps {
   isGestor: boolean
   existingAnswers?: Record<string, { value: string; evidence_url?: string; status?: string; value_jsonb?: any }>
   answersByQuestion?: Record<string, any[]>
+  anoReferencia?: number
+  previousYearAnswers?: Record<string, { value: string; value_jsonb?: any }>
 }
 
 export function QuestionnaireForm({
@@ -72,7 +74,10 @@ export function QuestionnaireForm({
   isGestor,
   existingAnswers = {},
   answersByQuestion = {},
+  anoReferencia,
+  previousYearAnswers = {},
 }: QuestionnaireFormProps) {
+  const currentYear = anoReferencia ?? new Date().getFullYear()
   const router = useRouter()
   
   const [responses, setResponses] = useState<Record<string, string>>(() => {
@@ -173,6 +178,7 @@ export function QuestionnaireForm({
         driveLink: driveLinks[questionId] || "",
         justification: needsJustification[questionId] ? justifications[questionId] : undefined,
         statusOverride: hasPendingRevision ? "corrigido" : undefined,
+        anoReferencia: currentYear,
       })
 
       if (result.success) {
@@ -756,7 +762,9 @@ export function QuestionnaireForm({
                     </div>
                   )}
 
-                  {question.metadata.obs_nao_aplicavel && (
+                  {question.metadata.obs_nao_aplicavel &&
+                    question.metadata.obs_nao_aplicavel.trim().length > 0 &&
+                    question.metadata.obs_nao_aplicavel.trim() !== "-" && (
                     <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-3 border border-amber-200 dark:border-amber-800">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
@@ -1013,6 +1021,12 @@ export function QuestionnaireForm({
                       <div className={isSaved || isLocked ? "opacity-60 pointer-events-none" : ""}>
                         {renderQuestionInput(question)}
                       </div>
+                      {previousYearAnswers[question.id] && (
+                        <p className="mt-1.5 text-xs text-muted-foreground border-l-2 border-muted pl-2">
+                          Sua resposta em {currentYear - 1}:{" "}
+                          <span className="font-medium">{previousYearAnswers[question.id].value || "—"}</span>
+                        </p>
+                      )}
                     </div>
                   )}
 

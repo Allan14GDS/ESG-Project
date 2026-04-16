@@ -195,12 +195,24 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
       }
     }) || []
 
+  // Ano de referência: filtra respostas pelo ano atual e busca o anterior para exibição
+  const currentYear = new Date().getFullYear()
+  const previousYear = currentYear - 1
+
   // Buscar respostas existentes separadamente
   // CORREÇÃO: Remover JOIN problemático que causa erro "more than one relationship"
   let answersQuery = adminClient
     .from("book_answers")
     .select("id, question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id")
     .eq("template_id", templateId)
+    .eq("ano_referencia", currentYear)
+
+  // Query paralela para o ano anterior (referência histórica exibida no formulário)
+  let prevYearQuery = adminClient
+    .from("book_answers")
+    .select("id, question_id, value, value_jsonb, evidence_url, status")
+    .eq("template_id", templateId)
+    .eq("ano_referencia", previousYear)
 
   console.log("[v0] ===== DIAGNÓSTICO COMPLETO =====")
   console.log("[v0] User ID:", user.id)
@@ -209,20 +221,26 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   console.log("[v0] Company ID for save:", companyIdForSave)
   console.log("[v0] Holding ID for save:", holdingIdForSave)
   console.log("[v0] Template ID:", templateId)
+  console.log("[v0] Ano atual:", currentYear, "| Ano anterior:", previousYear)
 
   // TODOS os usuários com acesso ao caderno veem TODAS as respostas (filtrado por company/holding)
   // A proteção de escrita continua no backend (questionnaire-actions.ts) - só o autor pode editar suas respostas
   if (companyIdForSave) {
     answersQuery = answersQuery.or(`company_id.eq.${companyIdForSave},and(company_id.is.null,holding_id.eq.${holdingIdForSave})`)
+    prevYearQuery = prevYearQuery.or(`company_id.eq.${companyIdForSave},and(company_id.is.null,holding_id.eq.${holdingIdForSave})`)
     console.log("[v0] FILTRO: Todas respostas por company_id:", companyIdForSave, "OU (company_id IS NULL AND holding_id:", holdingIdForSave, ")")
   } else if (holdingIdForSave) {
     answersQuery = answersQuery.eq("holding_id", holdingIdForSave).is("company_id", null)
+    prevYearQuery = prevYearQuery.eq("holding_id", holdingIdForSave).is("company_id", null)
     console.log("[v0] FILTRO: Todas respostas por holding_id:", holdingIdForSave, "e company_id IS NULL")
   } else {
     console.log("[v0] FILTRO: SEM FILTROS, buscando TODAS as respostas do template")
   }
 
-  const { data: existingAnswers, error: answersError } = await answersQuery
+  const [{ data: existingAnswers, error: answersError }, { data: prevYearAnswersRaw }] = await Promise.all([
+    answersQuery,
+    prevYearQuery,
+  ])
 
   console.log("[v0] ===== RESULTADO DA QUERY =====")
   console.log("[v0] Answers count:", existingAnswers?.length || 0)
@@ -302,6 +320,24 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
 
   console.log("[v0] Respostas mapeadas (responsesMap):", Object.keys(responsesMap).length)
   console.log("[v0] Questões com respostas agrupadas (answersByQuestion):", Object.keys(answersByQuestion).length)
+
+  // Montar mapa de respostas do ano anterior para exibição como referência no formulário
+  const previousYearMap: Record<string, { value: string; value_jsonb?: any }> = {}
+  if (prevYearAnswersRaw) {
+    for (const answer of prevYearAnswersRaw) {
+      if (!previousYearMap[answer.question_id]) {
+        let displayValue = answer.value || ""
+        if (answer.value_jsonb && typeof answer.value_jsonb === "object" && answer.value_jsonb.value !== undefined) {
+          displayValue = String(answer.value_jsonb.value)
+        }
+        previousYearMap[answer.question_id] = {
+          value: displayValue,
+          value_jsonb: answer.value_jsonb || null,
+        }
+      }
+    }
+  }
+  console.log("[v0] Respostas do ano anterior (previousYearMap):", Object.keys(previousYearMap).length)
 
   const totalQuestions = allQuestions.length
   const totalPages = Math.ceil(totalQuestions / ITEMS_PER_PAGE)
@@ -400,6 +436,8 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
               isGestor={isGestor}
               existingAnswers={responsesMap}
               answersByQuestion={answersByQuestion}
+              anoReferencia={currentYear}
+              previousYearAnswers={previousYearMap}
             />
 
             {totalPages > 1 && (

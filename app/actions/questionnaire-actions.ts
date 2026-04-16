@@ -14,6 +14,7 @@ interface SaveResponseParams {
   driveLink?: string
   justification?: string
   statusOverride?: string
+  anoReferencia?: number
 }
 
 export async function saveQuestionnaireResponse({
@@ -26,7 +27,9 @@ export async function saveQuestionnaireResponse({
   driveLink,
   justification,
   statusOverride,
+  anoReferencia,
 }: SaveResponseParams) {
+  const resolvedYear = anoReferencia ?? new Date().getFullYear()
   try {
     console.log("[v0] saveQuestionnaireResponse called with:", {
       templateId,
@@ -137,6 +140,7 @@ export async function saveQuestionnaireResponse({
       evidence_url: driveLink || null,
       status: statusOverride || "rascunho",
       updated_at: new Date().toISOString(),
+      ano_referencia: resolvedYear,
     }
 
     console.log("[v0] Saving book_answers with data:", dataToSave)
@@ -147,6 +151,7 @@ export async function saveQuestionnaireResponse({
       .eq("template_id", templateId)
       .eq("question_id", questionId)
       .eq("user_id", userId)
+      .eq("ano_referencia", resolvedYear)
 
     if (resolvedCompanyId) {
       query = query.eq("company_id", resolvedCompanyId)

@@ -2,13 +2,15 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { isDemoMode, DEMO_USER } from "@/lib/demo-mode"
 
 export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const selectedYear = Number(searchParams.get("year")) || new Date().getFullYear()
   const [userEmail, setUserEmail] = useState<string>("")
   const [userName, setUserName] = useState<string>("")
   const [userRole, setUserRole] = useState<"user" | "holding_admin" | "admin_main">("user")
@@ -43,7 +45,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
       try {
         const [profileResponse, progressResponse] = await Promise.all([
           fetch("/api/profile", { signal: abortController.signal }),
-          fetch("/api/progress", { signal: abortController.signal }),
+          fetch(`/api/progress?year=${selectedYear}`, { signal: abortController.signal }),
         ])
 
         if (abortController.signal.aborted) return
@@ -79,7 +81,7 @@ export function SidebarWrapper({ children }: { children: React.ReactNode }) {
     return () => {
       abortController.abort()
     }
-  }, [pathname])
+  }, [pathname, selectedYear])
 
   // Show children immediately for pages that should hide sidebar to avoid hydration issues
   if (shouldHideSidebar) {

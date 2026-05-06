@@ -1,10 +1,6 @@
 import type React from "react"
 import { SidebarWrapper } from "@/components/sidebar-wrapper"
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function HoldingLayout({ children }: { children: React.ReactNode }) {
   return <SidebarWrapper>{children}</SidebarWrapper>
 }

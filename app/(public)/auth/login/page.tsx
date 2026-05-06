@@ -99,7 +99,6 @@ export default function LoginPage() {
         style={{ background: "#161d3c" }}
       >
         <div className="flex items-center">
-          {/* Alteração: Envolvendo o logo com Link para retornar à Landing Page */}
           <Link href="/">
             <Image
               src="/assets/logo-dark.png"

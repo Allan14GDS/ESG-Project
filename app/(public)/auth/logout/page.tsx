@@ -2,7 +2,6 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function LogoutPage() {
-  // Server action para fazer logout
   async function logout() {
     "use server"
 
@@ -11,7 +10,6 @@ export default async function LogoutPage() {
     redirect("/auth/login")
   }
 
-  // Executar logout imediatamente quando a página carregar
   await logout()
 
   return null

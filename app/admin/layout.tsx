@@ -2,6 +2,7 @@ import type React from "react"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getAdminClient } from "@/lib/supabase/admin"
+import { SidebarWrapper } from "@/components/sidebar-wrapper"
 
 async function getProfileWithRetry(userId: string, maxRetries = 3) {
   let lastError: any = null
@@ -58,7 +59,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   console.log("[v0] Admin layout - Final profile check:", { userId: user.id, profile, error })
 
-  // Check if user has admin access
   if (!profile || !profile.is_active) {
     console.log("[v0] Admin layout - Redirecting to dashboard: profile not found or inactive")
     redirect("/dashboard/meus-cadernos")
@@ -73,5 +73,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   console.log("[v0] Admin layout - Access granted", { role: profile.role })
 
-  return <>{children}</>
+  return <SidebarWrapper>{children}</SidebarWrapper>
 }

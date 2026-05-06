@@ -13,7 +13,6 @@ export async function signUp(formData: FormData) {
 
   const supabase = await createClient()
 
-  // Step 1: Create user in auth.users
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
@@ -34,7 +33,6 @@ export async function signUp(formData: FormData) {
 
   console.log("[v0] User created in auth.users:", authData.user.id)
 
-  // Step 2: Insert profile in public.profiles
   const { error: profileError } = await supabase.from("profiles").insert({
     id: authData.user.id,
     full_name: fullName,
@@ -50,7 +48,5 @@ export async function signUp(formData: FormData) {
   console.log("[v0] Profile created successfully")
 
   revalidatePath("/auth/login")
-
-  // Success - redirect to login
   redirect("/auth/login")
 }

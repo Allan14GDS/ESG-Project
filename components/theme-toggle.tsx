@@ -1,29 +1,36 @@
 "use client"
 
-import * as React from "react"
 import { Moon, Sun } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 
 export function ThemeToggle() {
-  const [theme, setTheme] = React.useState<"light" | "dark">("light")
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
-    const initialTheme = savedTheme || "light"
-    setTheme(initialTheme)
-    document.documentElement.classList.toggle("dark", initialTheme === "dark")
+  // Monta apenas no cliente para evitar mismatch de hidratação.
+  useEffect(() => {
+    setMounted(true)
   }, [])
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    setTheme(newTheme)
-    localStorage.setItem("theme", newTheme)
-    document.documentElement.classList.toggle("dark", newTheme === "dark")
+  if (!mounted) {
+    return <div className="h-8 w-8 shrink-0" aria-hidden="true" />
   }
 
+  const isDark = resolvedTheme === "dark"
+
   return (
-    <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8 shrink-0" aria-label="Alternar tema">
-      {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-    </Button>
+    <button
+      data-testid="theme-toggle"
+      aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+    >
+      {isDark ? (
+        <Sun className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Moon className="h-4 w-4" aria-hidden="true" />
+      )}
+    </button>
   )
 }

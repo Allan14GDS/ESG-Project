@@ -2,15 +2,17 @@
 
 import type React from "react"
 import { Suspense, useEffect, useState } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { isDemoMode, DEMO_USER } from "@/lib/demo-mode"
 
+// ─── Inner component (needs Suspense boundary for useSearchParams) ─────────────
+
 function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
   const searchParams = useSearchParams()
   const selectedYear = Number(searchParams.get("year")) || new Date().getFullYear()
+
   const [userEmail, setUserEmail] = useState<string>("")
   const [userName, setUserName] = useState<string>("")
   const [userRole, setUserRole] = useState<"user" | "holding_admin" | "admin_main">("user")
@@ -18,22 +20,12 @@ function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
 
-  const shouldHideSidebar =
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/signin") ||
-    pathname.startsWith("/register") ||
-    pathname === "/" ||
-    pathname.startsWith("/solicitar-demonstracao") ||
-    pathname.startsWith("/conheca-a-plataforma")
-
   useEffect(() => {
     setIsMounted(true)
     const abortController = new AbortController()
 
     async function fetchUserData() {
-      // In demo mode, use demo user data
       if (isDemoMode()) {
-        console.log("[v0] Demo mode active - using demo user")
         setUserEmail(DEMO_USER.email)
         setUserName(DEMO_USER.full_name)
         setUserRole(DEMO_USER.role)
@@ -51,23 +43,25 @@ function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
         if (abortController.signal.aborted) return
 
         if (profileResponse.ok) {
-          const data = await profileResponse.json()
+          const data: { email?: string; full_name?: string; role?: "user" | "holding_admin" | "admin_main" } =
+            await profileResponse.json()
           if (!abortController.signal.aborted) {
-            setUserEmail(data.email || "")
-            setUserName(data.full_name || data.email?.split("@")[0] || "Usuário")
-            setUserRole(data.role || "user")
+            setUserEmail(data.email ?? "")
+            setUserName(data.full_name ?? data.email?.split("@")[0] ?? "Usuário")
+            setUserRole(data.role ?? "user")
           }
         }
 
         if (progressResponse.ok) {
-          const progressData = await progressResponse.json()
+          const progressData: { percentage?: number } = await progressResponse.json()
           if (!abortController.signal.aborted) {
             setOverallProgress(progressData.percentage ?? 0)
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!abortController.signal.aborted) {
-          console.error("[v0] Error fetching sidebar data:", error?.message || error)
+          const message = error instanceof Error ? error.message : String(error)
+          console.error("[v0] Error fetching sidebar data:", message)
         }
       } finally {
         if (!abortController.signal.aborted) {
@@ -77,18 +71,9 @@ function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
     }
 
     fetchUserData()
+    return () => abortController.abort()
+  }, [selectedYear])
 
-    return () => {
-      abortController.abort()
-    }
-  }, [pathname, selectedYear])
-
-  // Show children immediately for pages that should hide sidebar to avoid hydration issues
-  if (shouldHideSidebar) {
-    return <>{children}</>
-  }
-
-  // Prevent hydration mismatch by showing consistent content during SSR
   if (!isMounted || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -99,7 +84,12 @@ function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar userEmail={userEmail} userName={userName} userRole={userRole} overallProgress={overallProgress} />
+      <AppSidebar
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+        overallProgress={overallProgress}
+      />
       <SidebarInset>
         <div className="flex items-center justify-between border-b p-4 md:hidden">
           <div className="flex items-center gap-3">
@@ -112,6 +102,10 @@ function SidebarWrapperInner({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   )
 }
+
+// ─── Public export ────────────────────────────────────────────────────────────
+// Used exclusively by authenticated route layouts (dashboard, admin, holding,
+// company). Public routes live in app/(public)/ and never import this.
 
 export function SidebarWrapper({ children }: { children: React.ReactNode }) {
   return (

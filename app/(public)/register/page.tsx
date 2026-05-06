@@ -99,45 +99,19 @@ export default function RegisterPage() {
                 <div className="flex flex-col gap-6">
                   <div className="grid gap-2">
                     <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="John Doe"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
+                    <Input id="fullName" type="text" placeholder="John Doe" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="m@example.com"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
+                    <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
+                    <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="repeat-password">Confirm Password</Label>
-                    <Input
-                      id="repeat-password"
-                      type="password"
-                      required
-                      value={repeatPassword}
-                      onChange={(e) => setRepeatPassword(e.target.value)}
-                    />
+                    <Input id="repeat-password" type="password" required value={repeatPassword} onChange={(e) => setRepeatPassword(e.target.value)} />
                   </div>
                   {error && <p className="text-sm text-red-500">{error}</p>}
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -146,9 +120,7 @@ export default function RegisterPage() {
                 </div>
                 <div className="mt-4 text-center text-sm">
                   Already have an account?{" "}
-                  <Link href="/signin" className="underline underline-offset-4">
-                    Sign in
-                  </Link>
+                  <Link href="/signin" className="underline underline-offset-4">Sign in</Link>
                 </div>
               </form>
             </CardContent>

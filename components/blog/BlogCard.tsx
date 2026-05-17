@@ -50,7 +50,7 @@ export function BlogCardSkeleton() {
     <article
       data-testid="blog-card-skeleton"
       aria-label="Carregando post..."
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50/40 dark:bg-zinc-900/40 backdrop-blur-sm"
     >
       <Skeleton className="aspect-video w-full rounded-none bg-zinc-200/70 dark:bg-zinc-800/70" />
 
@@ -71,7 +71,7 @@ export function BlogCardSkeleton() {
           <Skeleton className="h-4 w-full rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
         </div>
 
-        <div className="mt-auto flex items-center justify-between border-t border-zinc-200/50 dark:border-zinc-800/50 pt-4">
+        <div className="mt-auto flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/60 pt-4">
           <Skeleton className="h-5 w-24 rounded-full bg-zinc-200/70 dark:bg-zinc-800/70" />
           <Skeleton className="h-4 w-24 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
         </div>
@@ -87,7 +87,7 @@ export function FeaturedPostSkeleton() {
     <article
       data-testid="blog-featured-skeleton"
       aria-label="Carregando artigo em destaque..."
-      className="overflow-hidden rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm"
+      className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
     >
       <div className="grid grid-cols-1 lg:grid-cols-2">
         <div className="flex flex-col justify-between gap-6 p-8 lg:p-12">
@@ -106,7 +106,7 @@ export function FeaturedPostSkeleton() {
               <Skeleton className="h-4 w-3/4 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
             </div>
           </div>
-          <div className="flex items-center justify-between border-t border-zinc-200/50 dark:border-zinc-800/50 pt-5">
+          <div className="flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/60 pt-5">
             <div className="flex gap-4">
               <Skeleton className="h-4 w-24 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
               <Skeleton className="h-4 w-28 rounded-md bg-zinc-200/70 dark:bg-zinc-800/70" />
@@ -147,10 +147,10 @@ function CategoryPill({
     <span
       className={[
         "inline-flex items-center rounded-full",
-        "border border-zinc-300/50 dark:border-zinc-700/50",
+        "border border-zinc-200/50 dark:border-zinc-700/50",
         "bg-zinc-100/50 dark:bg-zinc-800/50",
         "px-2.5 py-1 text-xs font-medium",
-        "text-zinc-700 dark:text-zinc-300",
+        "text-zinc-600 dark:text-zinc-400",
         "transition-colors duration-200",
         className,
       ].join(" ")}
@@ -179,11 +179,11 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
       data-testid="blog-featured-post"
       className={[
         "group relative overflow-hidden rounded-2xl",
-        "border border-zinc-200/50 dark:border-zinc-800/50",
-        "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm",
-        "transition-all duration-300 ease-out",
-        "hover:-translate-y-1 hover:border-zinc-400 dark:hover:border-zinc-600/70",
-        "hover:shadow-[0_0_60px_-12px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_0_60px_-12px_rgba(161,161,170,0.22)]",
+        "border border-zinc-200 dark:border-zinc-800",
+        "bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm",
+        "transition-all duration-500 ease-out",
+        "hover:border-zinc-300 dark:hover:border-zinc-700",
+        "hover:shadow-[0_0_80px_-20px_rgba(16,185,129,0.18)]",
       ].join(" ")}
     >
       <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -193,7 +193,7 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
           <div className="flex flex-col gap-4">
             {/* Destaque badge + categories */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/40 bg-emerald-950/40 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-400">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-700/50 bg-emerald-950/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-400">
                 <span
                   className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
                   aria-hidden="true"
@@ -212,8 +212,8 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
                 data-testid="blog-featured-title"
                 className={[
                   "text-4xl font-bold tracking-tight text-balance",
-                  "text-zinc-900 dark:text-zinc-100 lg:text-5xl",
-                  "transition-colors duration-200 group-hover:text-zinc-700 dark:group-hover:text-white",
+                  "text-zinc-800 dark:text-zinc-100 lg:text-5xl",
+                  "transition-colors duration-200 group-hover:text-zinc-900 dark:group-hover:text-white",
                 ].join(" ")}
               >
                 {post.title}
@@ -222,14 +222,14 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
 
             {/* Excerpt */}
             {post.excerpt && (
-              <p className="line-clamp-3 text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <p className="line-clamp-3 text-base leading-relaxed text-zinc-500">
                 {post.excerpt}
               </p>
             )}
           </div>
 
           {/* Rodapé: author + date + CTA ancorado ao fundo */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-200/60 dark:border-zinc-800/60 pt-5">
             <div className="flex items-center gap-4">
               {post.author?.name && (
                 <div className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -248,12 +248,12 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
               href={postHref}
               className={[
                 "inline-flex items-center gap-2 rounded-full",
-                "border border-zinc-300/60 dark:border-zinc-700/60",
-                "bg-zinc-100/80 dark:bg-zinc-800/80 px-4 py-2",
-                "text-xs font-medium text-zinc-800 dark:text-zinc-200",
+                "border border-zinc-200 dark:border-zinc-700",
+                "bg-zinc-50 dark:bg-zinc-900 px-4 py-2",
+                "text-xs font-medium text-zinc-700 dark:text-zinc-300",
                 "transition-all duration-200",
-                "hover:border-zinc-400 dark:hover:border-zinc-500",
-                "hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80",
+                "hover:border-emerald-500/50 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                "hover:text-zinc-900 dark:hover:text-white",
               ].join(" ")}
             >
               Ler artigo <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -262,28 +262,28 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
         </div>
 
         {/* Image */}
-        <div className="relative aspect-[16/9] overflow-hidden bg-zinc-100/60 dark:bg-zinc-800/60 lg:aspect-auto lg:min-h-[400px]">
+        <div className="relative aspect-[16/9] overflow-hidden bg-zinc-100 dark:bg-zinc-900 lg:aspect-auto lg:min-h-[400px]">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt={imageAlt}
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
               data-testid="blog-featured-image"
             />
           ) : (
             <div
               data-testid="blog-featured-image-placeholder"
-              className="absolute inset-0 flex items-center justify-center bg-zinc-100/60 dark:bg-zinc-800/60"
+              className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900"
             >
-              <span className="text-6xl text-zinc-400 dark:text-zinc-700" aria-hidden="true">
+              <span className="text-6xl text-zinc-300 dark:text-zinc-700" aria-hidden="true">
                 ✦
               </span>
             </div>
           )}
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-100/30 dark:from-zinc-900/30 via-transparent to-transparent lg:bg-gradient-to-r lg:from-zinc-100/20 dark:lg:from-zinc-900/20 lg:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/50 via-transparent to-transparent lg:bg-gradient-to-r lg:from-zinc-950/40 lg:to-transparent" />
         </div>
       </div>
 
@@ -292,8 +292,8 @@ export function FeaturedPost({ post }: FeaturedPostProps) {
         aria-hidden="true"
         className={[
           "absolute bottom-0 left-0 h-px w-full",
-          "bg-gradient-to-r from-transparent via-emerald-600/40 to-transparent",
-          "opacity-0 transition-opacity duration-300 group-hover:opacity-100",
+          "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent",
+          "opacity-0 transition-opacity duration-500 group-hover:opacity-100",
         ].join(" ")}
       />
     </article>
@@ -318,36 +318,36 @@ export function BlogCard({ post, isLoading = false }: BlogCardProps) {
       data-testid="blog-card"
       className={[
         "group relative flex flex-col overflow-hidden rounded-2xl",
-        "border border-zinc-200/50 dark:border-zinc-800/50",
-        "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm",
+        "border border-zinc-200/60 dark:border-zinc-800/60",
+        "bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm",
         "transition-all duration-300 ease-out",
-        "hover:-translate-y-1 hover:border-zinc-400 dark:hover:border-zinc-600/70",
-        "hover:shadow-[0_0_40px_-8px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_0_40px_-8px_rgba(161,161,170,0.18)]",
+        "hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-white/70 dark:hover:bg-zinc-900/70",
+        "hover:shadow-[0_0_40px_-10px_rgba(16,185,129,0.12)]",
       ].join(" ")}
     >
       {/* Cover Image */}
       <Link href={postHref} aria-label={`Ler: ${post.title}`} tabIndex={-1}>
-        <div className="relative aspect-video w-full overflow-hidden bg-zinc-100/60 dark:bg-zinc-800/60">
+        <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt={imageAlt}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               data-testid="blog-card-image"
             />
           ) : (
             <div
               data-testid="blog-card-image-placeholder"
-              className="absolute inset-0 flex items-center justify-center bg-zinc-100/60 dark:bg-zinc-800/60"
+              className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900"
             >
-              <span className="text-4xl text-zinc-400 dark:text-zinc-600">✦</span>
+              <span className="text-4xl text-zinc-300 dark:text-zinc-700">✦</span>
             </div>
           )}
 
-          {/* Subtle gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-100/60 dark:from-zinc-900/60 via-transparent to-transparent" />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
         </div>
       </Link>
 
@@ -360,7 +360,7 @@ export function BlogCard({ post, isLoading = false }: BlogCardProps) {
               <CategoryPill
                 key={category._id}
                 title={category.title}
-                className="group-hover:border-zinc-400 dark:group-hover:border-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
+                className="group-hover:border-zinc-400 dark:group-hover:border-zinc-600 group-hover:text-zinc-800 dark:group-hover:text-zinc-200"
               />
             ))}
           </div>
@@ -368,12 +368,12 @@ export function BlogCard({ post, isLoading = false }: BlogCardProps) {
 
         {/* Title */}
         <Link href={postHref}>
-          <h2
+            <h2
             data-testid="blog-card-title"
             className={[
               "line-clamp-3 text-lg font-semibold tracking-tight text-balance",
-              "text-zinc-900 dark:text-zinc-100 lg:text-xl",
-              "transition-colors duration-200 group-hover:text-zinc-700 dark:group-hover:text-white",
+              "text-zinc-800 dark:text-zinc-100 lg:text-xl",
+              "transition-colors duration-200 group-hover:text-zinc-900 dark:group-hover:text-white",
             ].join(" ")}
           >
             {post.title}
@@ -384,19 +384,19 @@ export function BlogCard({ post, isLoading = false }: BlogCardProps) {
         {post.excerpt && (
           <p
             data-testid="blog-card-excerpt"
-            className="line-clamp-2 flex-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400"
+            className="line-clamp-2 flex-1 text-sm leading-relaxed text-zinc-500"
           >
             {post.excerpt}
           </p>
         )}
 
         {/* Footer: primary category pill + author / date */}
-        <div className="mt-auto flex items-center justify-between border-t border-zinc-200/50 dark:border-zinc-800/50 pt-4">
+        <div className="mt-auto flex items-center justify-between border-t border-zinc-200/60 dark:border-zinc-800/60 pt-4">
           <div className="flex items-center gap-2">
             {primaryCategory && (
               <CategoryPill
                 title={primaryCategory.title}
-                className="group-hover:border-zinc-400 dark:group-hover:border-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
+                className="group-hover:border-zinc-400 dark:group-hover:border-zinc-600 group-hover:text-zinc-800 dark:group-hover:text-zinc-200"
               />
             )}
             {post.author?.name && (
@@ -427,7 +427,7 @@ export function BlogCard({ post, isLoading = false }: BlogCardProps) {
         aria-hidden="true"
         className={[
           "absolute bottom-0 left-0 h-px w-full",
-          "bg-gradient-to-r from-transparent via-emerald-600/30 to-transparent",
+          "bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent",
           "opacity-0 transition-opacity duration-300 group-hover:opacity-100",
         ].join(" ")}
       />

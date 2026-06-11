@@ -11,8 +11,9 @@ import { requireAdmin } from "@/lib/auth-utils"
 import { CreateCompanyButton } from "@/components/company/create-company-button"
 import { ExportCompanyDataButton } from "@/components/company/export-company-data-button"
 
-export default async function AdminHoldingDetailPage({ params }: { params: { holdingId: string } }) {
+export default async function AdminHoldingDetailPage({ params }: { params: Promise<{ holdingId: string }> }) {
   await requireAdmin()
+  const { holdingId } = await params
 
   const supabase = await createClient()
 
@@ -30,7 +31,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
   const { data: holding, error: holdingError } = await adminClient
     .from("organizations")
     .select("*")
-    .eq("id", params.holdingId)
+    .eq("id", holdingId)
     .single()
 
   if (holdingError || !holding) {
@@ -48,7 +49,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
   const { data: companies, error: companiesError } = await adminClient
     .from("companies")
     .select("*")
-    .eq("holding_id", params.holdingId)
+    .eq("holding_id", holdingId)
     .order("created_at", { ascending: false })
 
   if (companiesError || !companies) {
@@ -140,7 +141,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Holding ID</p>
-                  <p className="mt-2 text-sm font-mono text-foreground break-all">{params.holdingId}</p>
+                  <p className="mt-2 text-sm font-mono text-foreground break-all">{holdingId}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/30 bg-secondary/50">
                   <Calendar className="h-6 w-6 text-muted-foreground" />
@@ -152,7 +153,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
 
         {/* Action Buttons */}
         <div className="mb-8 flex flex-wrap gap-4">
-          <CreateCompanyButton holdingId={params.holdingId} />
+          <CreateCompanyButton holdingId={holdingId} />
         </div>
 
         {/* Companies List */}
@@ -218,7 +219,7 @@ export default async function AdminHoldingDetailPage({ params }: { params: { hol
                           <DeleteCompanyButton
                             companyId={company.id}
                             companyName={company.name}
-                            holdingId={params.holdingId}
+                            holdingId={holdingId}
                           />
                         </div>
                       </TableCell>

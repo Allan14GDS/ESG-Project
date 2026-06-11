@@ -83,7 +83,6 @@ export async function GET(request: NextRequest) {
         ? adminClient.rpc("get_gestor_answer_counts", {
             p_company_ids: companyIds,
             p_org_ids: orgIds,
-            p_year: targetYear,
           })
         : Promise.resolve({ data: [], error: null }),
 

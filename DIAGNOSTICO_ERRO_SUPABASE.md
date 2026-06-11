@@ -293,4 +293,4 @@ answer.profiles = profilesMap[answer.user_id] || null
 **IMPACTO:** Após correção, gestores verão TODAS as respostas do template nos campos preenchidos.
 
 **TEMPO ESTIMADO:** 5 minutos para implementar solução Opção 1.
-.
+..

@@ -30,6 +30,7 @@ import {
 import { saveQuestionnaireResponse, deleteUserAnswer } from "@/app/actions/questionnaire-actions"
 import { clearRevision } from "@/app/actions/review-actions"
 import { ReviewPanel } from "@/components/questionnaire/review-panel"
+import { GapAnalysisInput, GapAnalysisReadOnly, GAP_ISO_EMPTY, type GapIsoState } from "@/components/questionnaire/gap-analysis-input"
 import { toast } from "sonner"
 
 interface Question {
@@ -130,6 +131,24 @@ export function QuestionnaireForm({
   const [deletingAnswer, setDeletingAnswer] = useState<string | null>(null)
   const [deletedAnswers, setDeletedAnswers] = useState<Set<string>>(new Set())
 
+  const [gapAnswers, setGapAnswers] = useState<Record<string, GapIsoState>>(() => {
+    const initial: Record<string, GapIsoState> = {}
+    for (const [qId, data] of Object.entries(existingAnswers)) {
+      const vj = (data as any).value_jsonb
+      if (vj && vj.type === "gap_iso") {
+        initial[qId] = {
+          conformidade: vj.conformidade ?? null,
+          gap_identificado: vj.gap_identificado ?? "",
+          acao_necessaria: vj.acao_necessaria ?? "",
+          prioridade: vj.prioridade ?? null,
+          responsavel: vj.responsavel ?? "",
+          prazo: vj.prazo ?? "",
+        }
+      }
+    }
+    return initial
+  })
+
   const handleResponseChange = (questionId: string, value: string) => {
     setResponses((prev) => ({ ...prev, [questionId]: value }))
     setSavedQuestions((prev) => {
@@ -155,14 +174,22 @@ export function QuestionnaireForm({
   }
 
   const handleSaveQuestion = async (questionId: string, hasPendingRevision: boolean = false) => {
+    const question = questions.find((q) => q.id === questionId)
+    const isGapIso = question?.type?.toLowerCase() === "gap_iso"
     const value = responses[questionId]
     const isNA = notApplicable[questionId]
 
-    if (!value && !isNA) return
-
-    if (needsJustification[questionId] && !justifications[questionId]?.trim()) {
-      toast.error("Por favor, preencha a justificativa antes de salvar.")
-      return
+    if (isGapIso) {
+      if (!gapAnswers[questionId]?.conformidade) {
+        toast.error("Selecione o nível de conformidade antes de salvar.")
+        return
+      }
+    } else {
+      if (!value && !isNA) return
+      if (needsJustification[questionId] && !justifications[questionId]?.trim()) {
+        toast.error("Por favor, preencha a justificativa antes de salvar.")
+        return
+      }
     }
 
     setSavingQuestion(questionId)
@@ -174,11 +201,12 @@ export function QuestionnaireForm({
         userId,
         companyId,
         holdingId,
-        responseValue: isNA ? "N/A" : value,
+        responseValue: isGapIso ? (gapAnswers[questionId]?.conformidade ?? "") : isNA ? "N/A" : value,
         driveLink: driveLinks[questionId] || "",
-        justification: needsJustification[questionId] ? justifications[questionId] : undefined,
+        justification: !isGapIso && needsJustification[questionId] ? justifications[questionId] : undefined,
         statusOverride: hasPendingRevision ? "corrigido" : undefined,
         anoReferencia: currentYear,
+        gapAnalysisData: isGapIso ? gapAnswers[questionId] : undefined,
       })
 
       if (result.success) {
@@ -580,6 +608,28 @@ export function QuestionnaireForm({
           </RadioGroup>
         )
 
+      case "gap_iso": {
+        const isDisabled = savedQuestions.has(question.id) || isQuestionLocked(question)
+        return (
+          <GapAnalysisInput
+            questionId={question.id}
+            value={gapAnswers[question.id] ?? GAP_ISO_EMPTY}
+            onChange={(qId, update) => {
+              setGapAnswers((prev) => ({
+                ...prev,
+                [qId]: { ...GAP_ISO_EMPTY, ...prev[qId], ...update },
+              }))
+              setSavedQuestions((prev) => {
+                const next = new Set(prev)
+                next.delete(qId)
+                return next
+              })
+            }}
+            disabled={isDisabled}
+          />
+        )
+      }
+
       case "texto_longo":
       case "long_text":
       case "texto":
@@ -623,7 +673,10 @@ export function QuestionnaireForm({
       {questions.map((question, index) => {
         const isSaved = savedQuestions.has(question.id)
         const isSaving = savingQuestion === question.id
-        const hasValue = !!responses[question.id]
+        const isGapIso = question.type?.toLowerCase() === "gap_iso"
+        const hasValue = isGapIso
+          ? !!gapAnswers[question.id]?.conformidade
+          : !!responses[question.id]
         const needsJustificationChecked = needsJustification[question.id]
         const hasJustification = !needsJustificationChecked || !!justifications[question.id]
         const isNA = notApplicable[question.id]
@@ -880,6 +933,8 @@ export function QuestionnaireForm({
                               </SelectContent>
                             </Select>
                           </div>
+                        ) : question.type?.toLowerCase() === "gap_iso" ? (
+                          <GapAnalysisReadOnly value={answerValueJsonb} />
                         ) : (
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Resposta do Usuário:</Label>
@@ -976,23 +1031,25 @@ export function QuestionnaireForm({
               ) : !isLocked ? (
                 // Campos editáveis (normal ou em correção) - Visão do Usuário
                 <>
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-muted bg-muted/30">
-                    <Checkbox
-                      id={`na-${question.id}`}
-                      checked={isNA || false}
-                      onCheckedChange={(checked) => handleNotApplicableChange(question.id, checked as boolean)}
-                      disabled={isSaved || isLocked}
-                    />
-                    <Label
-                      htmlFor={`na-${question.id}`}
-                      className="text-sm font-medium cursor-pointer flex items-center gap-2"
-                    >
-                      <AlertCircle className="h-4 w-4 text-amber-600" />
-                      Marcar como Não Aplicável
-                    </Label>
-                  </div>
+                  {!isGapIso && (
+                    <div className="flex items-center space-x-2 p-3 rounded-lg border border-muted bg-muted/30">
+                      <Checkbox
+                        id={`na-${question.id}`}
+                        checked={isNA || false}
+                        onCheckedChange={(checked) => handleNotApplicableChange(question.id, checked as boolean)}
+                        disabled={isSaved || isLocked}
+                      />
+                      <Label
+                        htmlFor={`na-${question.id}`}
+                        className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                      >
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        Marcar como Não Aplicável
+                      </Label>
+                    </div>
+                  )}
 
-                  {isNA ? (
+                  {!isGapIso && isNA ? (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Motivo da Não Aplicabilidade:</Label>
                       <Select
@@ -1017,11 +1074,11 @@ export function QuestionnaireForm({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Sua Resposta:</Label>
-                      <div className={isSaved || isLocked ? "opacity-60 pointer-events-none" : ""}>
+                      {!isGapIso && <Label className="text-sm font-medium">Sua Resposta:</Label>}
+                      <div className={!isGapIso && (isSaved || isLocked) ? "opacity-60 pointer-events-none" : ""}>
                         {renderQuestionInput(question)}
                       </div>
-                      {previousYearAnswers[question.id] && (
+                      {!isGapIso && previousYearAnswers[question.id] && (
                         <p className="mt-1.5 text-xs text-muted-foreground border-l-2 border-muted pl-2">
                           Sua resposta em {currentYear - 1}:{" "}
                           <span className="font-medium">{previousYearAnswers[question.id].value || "—"}</span>
@@ -1030,65 +1087,69 @@ export function QuestionnaireForm({
                     </div>
                   )}
 
-                  <div className="space-y-3 pt-2 border-t">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`justify-${question.id}`}
-                        checked={needsJustification[question.id] || false}
-                        onCheckedChange={(checked) =>
-                          setNeedsJustification((prev) => ({ ...prev, [question.id]: checked as boolean }))
-                        }
+                  {!isGapIso && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`justify-${question.id}`}
+                          checked={needsJustification[question.id] || false}
+                          onCheckedChange={(checked) =>
+                            setNeedsJustification((prev) => ({ ...prev, [question.id]: checked as boolean }))
+                          }
+                          disabled={isSaved || isLocked}
+                        />
+                        <Label
+                          htmlFor={`justify-${question.id}`}
+                          className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          Adicionar justificativa ou observação
+                        </Label>
+                      </div>
+
+                      {needsJustification[question.id] && (
+                        <div className="ml-6 space-y-2 animate-in slide-in-from-top-2">
+                          <Label htmlFor={`justification-${question.id}`} className="text-sm text-muted-foreground">
+                            Justificativa:
+                          </Label>
+                          <Textarea
+                            id={`justification-${question.id}`}
+                            value={justifications[question.id] || ""}
+                            onChange={(e) => setJustifications((prev) => ({ ...prev, [question.id]: e.target.value }))}
+                            placeholder="Explique o motivo da sua resposta, adicione contexto ou observações importantes..."
+                            rows={4}
+                            disabled={isSaved || isLocked}
+                            className="resize-none"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Use este espaço para fornecer contexto adicional, explicar exceções ou detalhar sua resposta.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!isGapIso && (
+                    <div className="space-y-2">
+                      <Label htmlFor={`drive-${question.id}`} className="text-sm font-medium flex items-center gap-2">
+                        <LinkIcon className="h-4 w-4 text-primary" />
+                        Link de Comprovação
+                      </Label>
+                      <Input
+                        id={`drive-${question.id}`}
+                        type="url"
+                        value={driveLinks[question.id] || ""}
+                        onChange={(e) => handleDriveLinkChange(question.id, e.target.value)}
+                        placeholder="Cole o link do Google Drive com os documentos comprobatórios..."
+                        className="text-sm"
                         disabled={isSaved || isLocked}
                       />
-                      <Label
-                        htmlFor={`justify-${question.id}`}
-                        className="text-sm font-medium cursor-pointer flex items-center gap-2"
-                      >
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        Adicionar justificativa ou observação
-                      </Label>
+                      <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <LinkIcon className="h-3 w-3 mt-0.5 shrink-0" />
+                        Adicione links para documentos que comprovem suas respostas (Google Drive, SharePoint, etc.)
+                      </p>
                     </div>
-
-                    {needsJustification[question.id] && (
-                      <div className="ml-6 space-y-2 animate-in slide-in-from-top-2">
-                        <Label htmlFor={`justification-${question.id}`} className="text-sm text-muted-foreground">
-                          Justificativa:
-                        </Label>
-                        <Textarea
-                          id={`justification-${question.id}`}
-                          value={justifications[question.id] || ""}
-                          onChange={(e) => setJustifications((prev) => ({ ...prev, [question.id]: e.target.value }))}
-                          placeholder="Explique o motivo da sua resposta, adicione contexto ou observações importantes..."
-                          rows={4}
-                          disabled={isSaved || isLocked}
-                          className="resize-none"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Use este espaço para fornecer contexto adicional, explicar exceções ou detalhar sua resposta.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`drive-${question.id}`} className="text-sm font-medium flex items-center gap-2">
-                      <LinkIcon className="h-4 w-4 text-primary" />
-                      Link de Comprovação
-                    </Label>
-                    <Input
-                      id={`drive-${question.id}`}
-                      type="url"
-                      value={driveLinks[question.id] || ""}
-                      onChange={(e) => handleDriveLinkChange(question.id, e.target.value)}
-                      placeholder="Cole o link do Google Drive com os documentos comprobatórios..."
-                      className="text-sm"
-                      disabled={isSaved || isLocked}
-                    />
-                    <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                      <LinkIcon className="h-3 w-3 mt-0.5 shrink-0" />
-                      Adicione links para documentos que comprovem suas respostas (Google Drive, SharePoint, etc.)
-                    </p>
-                  </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-4 border-t">
                     {isSaved && !isLocked ? (

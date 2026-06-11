@@ -150,12 +150,14 @@ export function CadernosGestaoClient({
     return templates.filter((t) => !assignedTemplateIds.includes(t.id))
   }
 
-  // Get templates available for a specific company (based on company_templates)
+  // Get templates available for a specific company (based on company_templates).
+  // If the company has no entries in company_templates yet (newly created), fall back
+  // to all templates so admins can still make assignments before the company is formally linked.
   const getCompanyTemplates = (companyId: string) => {
-    const templateIds = companyTemplates
-      .filter((ct) => ct.company_id === companyId)
-      .map((ct) => ct.template_id)
-    
+    const companyLinks = companyTemplates.filter((ct) => ct.company_id === companyId)
+    if (companyLinks.length === 0) return templates
+
+    const templateIds = companyLinks.map((ct) => ct.template_id)
     return templates.filter((t) => templateIds.includes(t.id))
   }
 

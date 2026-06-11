@@ -5,10 +5,11 @@ import { ArrowLeft, Building2 } from "lucide-react"
 import Link from "next/link"
 import { AssignTemplateForm } from "@/components/company/assign-template-form"
 
-export default async function AssignTemplatePage({ params }: { params: { companyId: string } }) {
+export default async function AssignTemplatePage({ params }: { params: Promise<{ companyId: string }> }) {
   const adminClient = createAdminClient()
+  const { companyId } = await params
 
-  const { data: company } = await adminClient.from("companies").select("*").eq("id", params.companyId).single()
+  const { data: company } = await adminClient.from("companies").select("*").eq("id", companyId).single()
 
   if (!company) {
     return (
@@ -22,16 +23,40 @@ export default async function AssignTemplatePage({ params }: { params: { company
     )
   }
 
-  const { data: templates } = await adminClient.from("book_templates").select("*").order("name", { ascending: true })
+  const { data: templates, error: templatesError } = await adminClient
+    .from("book_templates")
+    .select("*")
+    .order("name", { ascending: true })
 
-  const { data: assignedTemplates } = await adminClient
+  console.log("[assign-template] book_templates query:", {
+    count: templates?.length ?? 0,
+    error: templatesError?.message ?? null,
+    ids: templates?.map((t) => t.id),
+  })
+
+  // company_templates: só considera active = true para templates já atribuídos.
+  // Não filtra book_templates por active — templates inseridos via SQL com active null/false também aparecem.
+  const { data: assignedTemplates, error: assignedError } = await adminClient
     .from("company_templates")
     .select("template_id")
-    .eq("company_id", params.companyId)
+    .eq("company_id", companyId)
     .eq("active", true)
+
+  console.log("[assign-template] company_templates (assigned) query:", {
+    companyId,
+    count: assignedTemplates?.length ?? 0,
+    error: assignedError?.message ?? null,
+    assignedIds: assignedTemplates?.map((at) => at.template_id),
+  })
 
   const assignedIds = assignedTemplates?.map((at) => at.template_id) || []
   const availableTemplates = templates?.filter((t) => !assignedIds.includes(t.id)) || []
+
+  console.log("[assign-template] result:", {
+    totalTemplates: templates?.length ?? 0,
+    assignedCount: assignedIds.length,
+    availableCount: availableTemplates.length,
+  })
 
   return (
     <div className="min-h-screen bg-background">

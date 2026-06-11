@@ -4,6 +4,17 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getCurrentUserProfile } from "@/lib/auth-utils"
 import { revalidatePath } from "next/cache"
 
+export interface GapAnalysisAnswer {
+  type: "gap_iso"
+  value: string
+  conformidade: "C" | "PC" | "NC" | "NA" | null
+  gap_identificado: string
+  acao_necessaria: string
+  prioridade: "A" | "M" | "B" | null
+  responsavel: string
+  prazo: string
+}
+
 interface SaveResponseParams {
   templateId: string
   questionId: string
@@ -15,6 +26,7 @@ interface SaveResponseParams {
   justification?: string
   statusOverride?: string
   anoReferencia?: number
+  gapAnalysisData?: Omit<GapAnalysisAnswer, "type" | "value">
 }
 
 export async function saveQuestionnaireResponse({
@@ -28,6 +40,7 @@ export async function saveQuestionnaireResponse({
   justification,
   statusOverride,
   anoReferencia,
+  gapAnalysisData,
 }: SaveResponseParams) {
   const resolvedYear = anoReferencia ?? new Date().getFullYear()
   try {
@@ -108,24 +121,40 @@ export async function saveQuestionnaireResponse({
 
     console.log("[v0] Resolved company_id:", resolvedCompanyId)
 
-    let valueJsonb: any = {
-      type: "text",
-      value: responseValue,
-    }
+    let valueJsonb: any
 
-    const numericValue = Number.parseFloat(responseValue)
-    if (!isNaN(numericValue) && responseValue.trim() !== "") {
+    if (gapAnalysisData) {
       valueJsonb = {
-        type: "number",
-        value: numericValue,
-      }
-    }
-
-    if (justification || driveLink) {
-      valueJsonb = {
-        ...valueJsonb,
-        justification: justification || null,
+        type: "gap_iso",
+        value: responseValue,
+        conformidade: gapAnalysisData.conformidade ?? null,
+        gap_identificado: gapAnalysisData.gap_identificado ?? "",
+        acao_necessaria: gapAnalysisData.acao_necessaria ?? "",
+        prioridade: gapAnalysisData.prioridade ?? null,
+        responsavel: gapAnalysisData.responsavel ?? "",
+        prazo: gapAnalysisData.prazo ?? "",
         evidence_url: driveLink || null,
+      } satisfies GapAnalysisAnswer & { evidence_url: string | null }
+    } else {
+      valueJsonb = {
+        type: "text",
+        value: responseValue,
+      }
+
+      const numericValue = Number.parseFloat(responseValue)
+      if (!isNaN(numericValue) && responseValue.trim() !== "") {
+        valueJsonb = {
+          type: "number",
+          value: numericValue,
+        }
+      }
+
+      if (justification || driveLink) {
+        valueJsonb = {
+          ...valueJsonb,
+          justification: justification || null,
+          evidence_url: driveLink || null,
+        }
       }
     }
 

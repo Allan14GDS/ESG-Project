@@ -55,11 +55,13 @@ export default async function CadernosGestaoPage() {
     redirect("/dashboard")
   }
 
+  const isAdminMain = profile.role === "admin_main"
+
   let userHoldingIds: string[] = []
   const allowedOrgIds: string[] = []
 
   // Se for user/revisor, buscar as organizations que ele pertence
-  if (profile.role === "holding_admin" || profile.role === "user" || profile.role === "revisor") {
+  if (!isAdminMain && (profile.role === "holding_admin" || profile.role === "user" || profile.role === "revisor")) {
     if (profile.role === "holding_admin") {
       let memberships
       try {
@@ -163,7 +165,7 @@ export default async function CadernosGestaoPage() {
     .eq("is_active", true)
     .order("full_name", { ascending: true })
 
-  if (allowedOrgIds.length > 0) {
+  if (!isAdminMain && allowedOrgIds.length > 0) {
     try {
       const { data: userMemberships } = await adminClient
         .from("organization_members")
@@ -217,7 +219,7 @@ export default async function CadernosGestaoPage() {
       )
     `)
 
-  if (allowedOrgIds.length > 0) {
+  if (!isAdminMain && allowedOrgIds.length > 0) {
     assignmentsQuery = assignmentsQuery.in("organization_id", allowedOrgIds)
   }
 
@@ -242,13 +244,13 @@ export default async function CadernosGestaoPage() {
   console.log("[v0] Cadernos Gestao - Assignments count:", assignments?.length || 0)
 
   // Fetch organizations (holdings) and companies
+  // admin_main sees everything; other roles are scoped to their allowedOrgIds / userHoldingIds
   let organizations: any[] = []
   try {
-    const { data } = await adminClient
-      .from("organizations")
-      .select("*")
-      .in("id", allowedOrgIds)
-      .order("name")
+    const orgsQuery = adminClient.from("organizations").select("*").order("name")
+    const { data } = isAdminMain
+      ? await orgsQuery
+      : await orgsQuery.in("id", allowedOrgIds)
     organizations = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
@@ -259,11 +261,10 @@ export default async function CadernosGestaoPage() {
 
   let companies: any[] = []
   try {
-    const { data } = await adminClient
-      .from("companies")
-      .select("*")
-      .in("holding_id", userHoldingIds)
-      .order("name")
+    const companiesQuery = adminClient.from("companies").select("*").order("name")
+    const { data } = isAdminMain
+      ? await companiesQuery
+      : await companiesQuery.in("holding_id", userHoldingIds)
     companies = data || []
   } catch (error: any) {
     if (error?.name === "AbortError") {
@@ -318,16 +319,18 @@ export default async function CadernosGestaoPage() {
   // --- Use RPC to get answer counts (bypasses PostgREST 1000-row limit) ---
   let answerCountsMap = new Map<string, number>() // key: `${template_id}_${company_id}` -> count
   try {
-    if (allowedOrgIds.length > 0) {
+    if (isAdminMain || allowedOrgIds.length > 0) {
       const companyIds = (companies || []).map((c: any) => c.id)
 
       if (companyIds.length > 0) {
-        const currentYear = new Date().getFullYear()
+        const allOrgIds = isAdminMain
+          ? organizations.map((o: any) => o.id)
+          : allowedOrgIds
+
         const { data: counts, error: countsError } = await adminClient
           .rpc("get_gestor_answer_counts", {
             p_company_ids: companyIds,
-            p_org_ids: allowedOrgIds,
-            p_year: currentYear,
+            p_org_ids: allOrgIds,
           })
 
         if (countsError) {

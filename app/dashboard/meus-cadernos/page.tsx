@@ -54,11 +54,12 @@ export default async function MeusCadernosPage({
     redirect("/auth/login")
   }
 
-  // Fetch assignments
+  // Fetch assignments filtered by the selected reference year
   const { data: assignmentsData, error: assignmentsError } = await adminClient
     .from("book_assignments")
-    .select("caderno_id, organization_id, company_id, role")
+    .select("caderno_id, organization_id, company_id, role, ano_referencia")
     .eq("user_id", profile.id)
+    .eq("ano_referencia", targetYear)
 
   if (assignmentsError) {
     console.error("[v0] Error fetching assignments:", assignmentsError)
@@ -123,28 +124,61 @@ export default async function MeusCadernosPage({
       }
       templates = templatesData || []
 
-      // Fetch organizations if we have org IDs
-      if (orgIds.length > 0) {
+      // IDs de empresa referenciados diretamente nas assignments
+      const assignmentCompanyIds = [
+        ...new Set(assignments.map((a: any) => a.company_id).filter(Boolean)),
+      ] as string[]
+
+      // Busca primária: empresas pelo holding_id mapeado nas assignments
+      const { data: companiesByHolding, error: companiesByHoldingError } =
+        orgIds.length > 0
+          ? await adminClient.from("companies").select("*").in("holding_id", orgIds)
+          : { data: [], error: null }
+
+      if (companiesByHoldingError) {
+        console.error("[v0] Error fetching companies by holding:", companiesByHoldingError)
+      }
+
+      // Fallback: busca empresas diretamente pelo company_id das assignments
+      // Cobre o caso em que holding_id não está mapeado ou organization_id era null
+      let companiesFallback: any[] = []
+      if (assignmentCompanyIds.length > 0) {
+        const alreadyFetchedIds = new Set((companiesByHolding || []).map((c) => c.id))
+        const missingIds = assignmentCompanyIds.filter((id) => !alreadyFetchedIds.has(id))
+
+        if (missingIds.length > 0) {
+          const { data: byId, error: byIdError } = await adminClient
+            .from("companies")
+            .select("*")
+            .in("id", missingIds)
+
+          if (byIdError) {
+            console.error("[v0] Error fetching companies by id (fallback):", byIdError)
+          }
+          companiesFallback = byId || []
+        }
+      }
+
+      companies = [...(companiesByHolding || []), ...companiesFallback]
+
+      // Reconstrói orgIds incluindo os holding_id das empresas recuperadas pelo fallback,
+      // garantindo que a holding apareça na hierarquia mesmo quando organization_id era null
+      const fallbackOrgIds = companiesFallback
+        .map((c: any) => c.holding_id)
+        .filter(Boolean) as string[]
+      const allOrgIds = [...new Set([...orgIds, ...fallbackOrgIds])]
+
+      // Fetch organizations usando o conjunto completo de holding IDs
+      if (allOrgIds.length > 0) {
         const { data: organizationsData, error: orgsError } = await adminClient
           .from("organizations")
           .select("*")
-          .in("id", orgIds)
+          .in("id", allOrgIds)
 
         if (orgsError) {
           console.error("[v0] Error fetching organizations:", orgsError)
         }
         organizations = organizationsData || []
-
-        // Fetch companies from the companies table
-        const { data: companiesData, error: companiesError } = await adminClient
-          .from("companies")
-          .select("*")
-          .in("holding_id", orgIds)
-
-        if (companiesError) {
-          console.error("[v0] Error fetching companies:", companiesError)
-        }
-        companies = companiesData || []
       }
     } catch (error) {
       console.error("[v0] Exception fetching data:", error)
@@ -494,7 +528,7 @@ export default async function MeusCadernosPage({
         </div>
 
         {/* Holdings → Empresas → Cadernos Hierarchy with Search */}
-        <MeusCadernosClient allHoldingsAndOrgs={allHoldingsAndOrgs} />
+        <MeusCadernosClient allHoldingsAndOrgs={allHoldingsAndOrgs} targetYear={targetYear} />
       </div>
     </div>
   )

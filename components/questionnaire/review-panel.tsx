@@ -19,6 +19,7 @@ interface ReviewPanelProps {
   answerStatus: string | null
   userRole: string
   isGestor: boolean
+  anoReferencia: number
   onUpdate?: () => void
 }
 
@@ -31,6 +32,7 @@ export function ReviewPanel({
   answerStatus,
   userRole,
   isGestor,
+  anoReferencia,
   onUpdate,
 }: ReviewPanelProps) {
   const [comment, setComment] = useState("")
@@ -57,6 +59,7 @@ export function ReviewPanel({
         questionId,
         templateId,
         comment: comment.trim(),
+        anoReferencia,
       })
 
       console.log("[v0] handleRequestRevision: Resultado da action:", result)
@@ -82,6 +85,7 @@ export function ReviewPanel({
         junctionId,
         questionId,
         templateId,
+        anoReferencia,
       })
 
       console.log("[v0] handleApprove: Resultado da action:", result)
@@ -115,6 +119,7 @@ export function ReviewPanel({
         questionId,
         templateId,
         reason: comment.trim(),
+        anoReferencia,
       })
 
       console.log("[v0] handleReject: Resultado da action:", result)
@@ -141,6 +146,7 @@ export function ReviewPanel({
         questionId,
         templateId,
         newValue: correctedAnswer.trim(),
+        anoReferencia,
       })
 
       if (result.success) {

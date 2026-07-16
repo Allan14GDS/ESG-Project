@@ -9,12 +9,14 @@ interface RequestRevisionParams {
   questionId: string
   templateId: string
   comment: string
+  anoReferencia: number
 }
 
 interface ApproveQuestionParams {
   junctionId: string
   questionId: string
   templateId: string
+  anoReferencia: number
 }
 
 interface SubmitCorrectionParams {
@@ -23,9 +25,10 @@ interface SubmitCorrectionParams {
   junctionId: string
   newValue: string
   driveLink?: string
+  anoReferencia: number
 }
 
-export async function requestRevision({ junctionId, questionId, templateId, comment }: RequestRevisionParams) {
+export async function requestRevision({ junctionId, questionId, templateId, comment, anoReferencia }: RequestRevisionParams) {
   try {
     console.log("[v0] requestRevision chamada:", { junctionId, questionId, templateId, comment })
     
@@ -82,6 +85,7 @@ export async function requestRevision({ junctionId, questionId, templateId, comm
       .update({ status: "revisao" })
       .eq("template_id", templateId)
       .eq("question_id", questionId)
+      .eq("ano_referencia", anoReferencia)
 
     if (statusError) {
       console.error("[v0] Error updating answer status:", statusError)
@@ -100,7 +104,7 @@ export async function requestRevision({ junctionId, questionId, templateId, comm
   }
 }
 
-export async function approveQuestion({ junctionId, questionId, templateId }: ApproveQuestionParams) {
+export async function approveQuestion({ junctionId, questionId, templateId, anoReferencia }: ApproveQuestionParams) {
   try {
     console.log("[v0] approveQuestion chamada:", { junctionId, questionId, templateId })
     
@@ -156,6 +160,7 @@ export async function approveQuestion({ junctionId, questionId, templateId }: Ap
       .update({ status: "aprovado" })
       .eq("template_id", templateId)
       .eq("question_id", questionId)
+      .eq("ano_referencia", anoReferencia)
 
     if (statusError) {
       console.error("[v0] Error updating answer status:", statusError)
@@ -179,6 +184,7 @@ export async function rejectQuestion({
   questionId,
   templateId,
   reason,
+  anoReferencia,
 }: ApproveQuestionParams & { reason: string }) {
   try {
     console.log("[v0] rejectQuestion chamada:", { junctionId, questionId, templateId, reason })
@@ -235,6 +241,7 @@ export async function rejectQuestion({
       .update({ status: "rejeitado" })
       .eq("template_id", templateId)
       .eq("question_id", questionId)
+      .eq("ano_referencia", anoReferencia)
 
     if (statusError) {
       console.error("[v0] Error updating answer status:", statusError)
@@ -259,6 +266,7 @@ export async function submitCorrection({
   junctionId,
   newValue,
   driveLink,
+  anoReferencia,
 }: SubmitCorrectionParams) {
   try {
     const profile = await getCurrentUserProfile()
@@ -280,6 +288,7 @@ export async function submitCorrection({
       .eq("template_id", templateId)
       .eq("question_id", questionId)
       .eq("user_id", profile.id)
+      .eq("ano_referencia", anoReferencia)
 
     if (answerError) {
       console.error("[v0] Error updating answer:", answerError)
@@ -310,7 +319,7 @@ export async function submitCorrection({
   }
 }
 
-export async function clearRevision({ junctionId, questionId, templateId }: ApproveQuestionParams) {
+export async function clearRevision({ junctionId, questionId, templateId, anoReferencia }: ApproveQuestionParams) {
   try {
     console.log("[v0] clearRevision chamada:", { junctionId, questionId, templateId })
     
@@ -366,6 +375,7 @@ export async function clearRevision({ junctionId, questionId, templateId }: Appr
       .update({ status: "rascunho" })
       .eq("template_id", templateId)
       .eq("question_id", questionId)
+      .eq("ano_referencia", anoReferencia)
 
     if (statusError) {
       console.error("[v0] Error updating answer status:", statusError)

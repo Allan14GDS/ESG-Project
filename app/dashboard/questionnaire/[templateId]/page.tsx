@@ -8,6 +8,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { QuestionnaireForm } from "@/components/questionnaire/questionnaire-form"
+import { QuestionnaireSidebar } from "@/components/questionnaire/questionnaire-sidebar"
 
 export const dynamic = "force-dynamic"
 
@@ -280,7 +281,10 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   }
 
   const answersByQuestion: Record<string, any[]> = {}
-  const responsesMap: Record<string, { value: string; evidence_url?: string; status?: string; value_jsonb?: any }> = {}
+  const responsesMap: Record<
+    string,
+    { value: string; evidence_url?: string; status?: string; value_jsonb?: any; last_edited_by_name?: string | null }
+  > = {}
 
   if (existingAnswers) {
     for (const answer of existingAnswers) {
@@ -306,6 +310,8 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
         evidence_url: answer.evidence_url || "",
         status: answer.status || "rascunho",
         value_jsonb: answer.value_jsonb || null,
+        last_edited_by_name:
+          answer.profiles?.full_name || answer.profiles?.email || null,
       }
         
         console.log("[v0] Mapeando resposta:", {
@@ -354,7 +360,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-6 py-12 lg:px-8">
+      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Link href="/dashboard/meus-cadernos">
@@ -385,8 +391,8 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
           </div>
         </div>
 
-        {/* Progress Card */}
-        <Card className="mb-8 border-primary/20 bg-primary/5">
+        {/* Progress Card — visível apenas no mobile (a sidebar tem o progresso no desktop) */}
+        <Card className="mb-8 border-primary/20 bg-primary/5 lg:hidden">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -402,90 +408,107 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
           </CardContent>
         </Card>
 
-        {totalQuestions > ITEMS_PER_PAGE && (
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando questões {startIndex + 1} a {Math.min(endIndex, totalQuestions)} de {totalQuestions}
-            </p>
-            <p className="text-sm font-medium text-muted-foreground">
-              Página {currentPage} de {totalPages}
-            </p>
-          </div>
-        )}
+        {/* Layout principal: sidebar + conteúdo em flexbox para que o formulário
+            se expanda fluídamente quando a sidebar recolhe */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* Sidebar sticky (só desktop) — gerencia a própria largura internamente */}
+          <QuestionnaireSidebar
+            allQuestions={allQuestions}
+            existingAnswers={responsesMap}
+            templateId={templateId}
+            companyId={companyId}
+            currentPage={currentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
 
-        {/* Questions */}
-        {totalQuestions === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhuma questão cadastrada</h3>
-              <p className="text-muted-foreground">
-                Este caderno ainda não possui questões. Entre em contato com o administrador.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <QuestionnaireForm
-              questions={questions}
-              templateId={templateId}
-              userId={user.id}
-              companyId={companyIdForSave}
-              holdingId={holdingIdForSave || null}
-              userRole={userRole}
-              isGestor={isGestor}
-              existingAnswers={responsesMap}
-              answersByQuestion={answersByQuestion}
-              anoReferencia={currentYear}
-              previousYearAnswers={previousYearMap}
-            />
+          {/* Conteúdo principal — flex-1 para absorver o espaço da sidebar */}
+          <div className="flex-1 min-w-0">
+            {totalQuestions > ITEMS_PER_PAGE && (
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Questões {startIndex + 1}–{Math.min(endIndex, totalQuestions)} de {totalQuestions}
+                </p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </p>
+              </div>
+            )}
 
-            {totalPages > 1 && (
-              <Card className="mt-6">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-sm text-muted-foreground">
-                      Página {currentPage} de {totalPages}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/dashboard/questionnaire/${templateId}?page=1${companyId ? `&company=${companyId}` : ""}`}
-                      >
-                        <Button variant="outline" size="sm" disabled={currentPage === 1}>
-                          Primeira
-                        </Button>
-                      </Link>
-                      <Link
-                        href={`/dashboard/questionnaire/${templateId}?page=${currentPage - 1}${companyId ? `&company=${companyId}` : ""}`}
-                      >
-                        <Button variant="outline" size="sm" disabled={currentPage === 1}>
-                          Anterior
-                        </Button>
-                      </Link>
-                      <span className="mx-2 text-sm font-medium">
-                        {currentPage} / {totalPages}
-                      </span>
-                      <Link
-                        href={`/dashboard/questionnaire/${templateId}?page=${currentPage + 1}${companyId ? `&company=${companyId}` : ""}`}
-                      >
-                        <Button variant="outline" size="sm" disabled={currentPage === totalPages}>
-                          Próxima
-                        </Button>
-                      </Link>
-                      <Link
-                        href={`/dashboard/questionnaire/${templateId}?page=${totalPages}${companyId ? `&company=${companyId}` : ""}`}
-                      >
-                        <Button variant="outline" size="sm" disabled={currentPage === totalPages}>
-                          Última
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
+            {/* Questions */}
+            {totalQuestions === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma questão cadastrada</h3>
+                  <p className="text-muted-foreground">
+                    Este caderno ainda não possui questões. Entre em contato com o administrador.
+                  </p>
                 </CardContent>
               </Card>
+            ) : (
+              <>
+                <QuestionnaireForm
+                  questions={questions}
+                  templateId={templateId}
+                  userId={user.id}
+                  companyId={companyIdForSave}
+                  holdingId={holdingIdForSave || null}
+                  userRole={userRole}
+                  isGestor={isGestor}
+                  existingAnswers={responsesMap}
+                  answersByQuestion={answersByQuestion}
+                  anoReferencia={currentYear}
+                  previousYearAnswers={previousYearMap}
+                />
+
+                {totalPages > 1 && (
+                  <Card className="mt-6">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-sm text-muted-foreground">
+                          Página {currentPage} de {totalPages}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/dashboard/questionnaire/${templateId}?page=1${companyId ? `&company=${companyId}` : ""}`}
+                          >
+                            <Button variant="outline" size="sm" disabled={currentPage === 1}>
+                              Primeira
+                            </Button>
+                          </Link>
+                          <Link
+                            href={`/dashboard/questionnaire/${templateId}?page=${currentPage - 1}${companyId ? `&company=${companyId}` : ""}`}
+                          >
+                            <Button variant="outline" size="sm" disabled={currentPage === 1}>
+                              Anterior
+                            </Button>
+                          </Link>
+                          <span className="mx-2 text-sm font-medium">
+                            {currentPage} / {totalPages}
+                          </span>
+                          <Link
+                            href={`/dashboard/questionnaire/${templateId}?page=${currentPage + 1}${companyId ? `&company=${companyId}` : ""}`}
+                          >
+                            <Button variant="outline" size="sm" disabled={currentPage === totalPages}>
+                              Próxima
+                            </Button>
+                          </Link>
+                          <Link
+                            href={`/dashboard/questionnaire/${templateId}?page=${totalPages}${companyId ? `&company=${companyId}` : ""}`}
+                          >
+                            <Button variant="outline" size="sm" disabled={currentPage === totalPages}>
+                              Última
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   )

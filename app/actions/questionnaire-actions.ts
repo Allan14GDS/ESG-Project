@@ -174,12 +174,13 @@ export async function saveQuestionnaireResponse({
 
     console.log("[v0] Saving book_answers with data:", dataToSave)
 
+    // Modelo de resposta compartilhada: a busca é por empresa + ano, não por usuário.
+    // O user_id em dataToSave registra quem foi o último colaborador a editar.
     let query = adminClient
       .from("book_answers")
       .select("id")
       .eq("template_id", templateId)
       .eq("question_id", questionId)
-      .eq("user_id", userId)
       .eq("ano_referencia", resolvedYear)
 
     if (resolvedCompanyId) {

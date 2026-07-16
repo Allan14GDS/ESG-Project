@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button"
 
 interface MeusCadernosClientProps {
   allHoldingsAndOrgs: any[]
+  targetYear: number
 }
 
-export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientProps) {
+export function MeusCadernosClient({ allHoldingsAndOrgs, targetYear }: MeusCadernosClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
@@ -219,7 +220,7 @@ export function MeusCadernosClient({ allHoldingsAndOrgs }: MeusCadernosClientPro
                           {company.cadernos.map((caderno: any) => (
                             <Link
                               key={`${caderno.id}_${caderno.company_id || caderno.organization_id}`}
-                              href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || company.id}`}
+                              href={`/dashboard/questionnaire/${caderno.id}?company=${caderno.company_id || company.id}&year=${targetYear}`}
                               className="flex items-center justify-between p-4 hover:bg-background/50 transition-colors group"
                             >
                               <div className="flex items-center gap-3">

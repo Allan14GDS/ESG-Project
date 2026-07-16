@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,11 +26,15 @@ import {
   User,
   X,
   Trash2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { saveQuestionnaireResponse, deleteUserAnswer } from "@/app/actions/questionnaire-actions"
 import { clearRevision } from "@/app/actions/review-actions"
 import { ReviewPanel } from "@/components/questionnaire/review-panel"
 import { GapAnalysisInput, GapAnalysisReadOnly, GAP_ISO_EMPTY, type GapIsoState } from "@/components/questionnaire/gap-analysis-input"
+import { extractCategory, slugifyCategory } from "@/components/questionnaire/questionnaire-sidebar"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface Question {
@@ -51,6 +55,16 @@ interface Question {
   comment_author_role?: string | null
 }
 
+type SavingStatus = "idle" | "saving" | "saved" | "error"
+
+interface ExistingAnswer {
+  value: string
+  evidence_url?: string
+  status?: string
+  value_jsonb?: any
+  last_edited_by_name?: string | null
+}
+
 interface QuestionnaireFormProps {
   questions: any[]
   templateId: string
@@ -59,7 +73,7 @@ interface QuestionnaireFormProps {
   holdingId: string | null
   userRole: string
   isGestor: boolean
-  existingAnswers?: Record<string, { value: string; evidence_url?: string; status?: string; value_jsonb?: any }>
+  existingAnswers?: Record<string, ExistingAnswer>
   answersByQuestion?: Record<string, any[]>
   anoReferencia?: number
   previousYearAnswers?: Record<string, { value: string; value_jsonb?: any }>
@@ -130,6 +144,29 @@ export function QuestionnaireForm({
   const [clearingRevision, setClearingRevision] = useState<string | null>(null)
   const [deletingAnswer, setDeletingAnswer] = useState<string | null>(null)
   const [deletedAnswers, setDeletedAnswers] = useState<Set<string>>(new Set())
+  const [savingStatus, setSavingStatus] = useState<SavingStatus>("idle")
+
+  // Collapse: questões respondidas começam minimizadas, exceto as com ajuste pendente
+  const [collapsedQuestions, setCollapsedQuestions] = useState<Set<string>>(() => {
+    const pendingRevisionIds = new Set(questions.filter((q) => q.comment).map((q) => q.id))
+    return new Set(
+      Object.entries(existingAnswers)
+        .filter(([qId, data]) => data.value && data.value.trim() !== "" && !pendingRevisionIds.has(qId))
+        .map(([qId]) => qId)
+    )
+  })
+
+  const toggleCollapsed = (questionId: string) => {
+    setCollapsedQuestions((prev) => {
+      const next = new Set(prev)
+      if (next.has(questionId)) {
+        next.delete(questionId)
+      } else {
+        next.add(questionId)
+      }
+      return next
+    })
+  }
 
   const [gapAnswers, setGapAnswers] = useState<Record<string, GapIsoState>>(() => {
     const initial: Record<string, GapIsoState> = {}
@@ -193,6 +230,7 @@ export function QuestionnaireForm({
     }
 
     setSavingQuestion(questionId)
+    setSavingStatus("saving")
 
     startTransition(async () => {
       const result = await saveQuestionnaireResponse({
@@ -211,17 +249,24 @@ export function QuestionnaireForm({
 
       if (result.success) {
         setSavedQuestions((prev) => new Set(prev).add(questionId))
+        setSavingStatus("saved")
+        // Auto-colapsa a questão após salvar com sucesso
+        setTimeout(() => {
+          setCollapsedQuestions((prev) => new Set(prev).add(questionId))
+        }, 1200)
         if (hasPendingRevision) {
           toast.success("Correção enviada com sucesso! Aguardando revisão do gestor.")
-          // Atualizar a página para refletir o novo status
           router.refresh()
         } else {
           toast.success("Resposta salva com sucesso!")
         }
       } else if (result.error) {
+        setSavingStatus("error")
         toast.error(result.error)
       }
       setSavingQuestion(null)
+
+      setTimeout(() => setSavingStatus("idle"), 3000)
     })
   }
 
@@ -248,6 +293,7 @@ export function QuestionnaireForm({
         junctionId: question.junction_id!,
         questionId: question.id,
         templateId,
+        anoReferencia: currentYear,
       })
 
       if (result.success) {
@@ -669,8 +715,46 @@ export function QuestionnaireForm({
   })
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 scroll-smooth">
+      {/* Indicador global de salvamento */}
+      {savingStatus !== "idle" && (
+        <div
+          data-testid="saving-status-badge"
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 transition-all duration-300 ${
+            savingStatus === "saving"
+              ? "bg-zinc-900 text-zinc-100 ring-zinc-700"
+              : savingStatus === "saved"
+                ? "bg-emerald-950 text-emerald-300 ring-emerald-700"
+                : "bg-red-950 text-red-300 ring-red-700"
+          }`}
+        >
+          {savingStatus === "saving" && (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Salvando...
+            </>
+          )}
+          {savingStatus === "saved" && (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Salvo
+            </>
+          )}
+          {savingStatus === "error" && (
+            <>
+              <AlertCircle className="h-3.5 w-3.5" />
+              Erro ao salvar
+            </>
+          )}
+        </div>
+      )}
+
       {questions.map((question, index) => {
+        // Detecta mudança de categoria para injetar âncora de scroll
+        const category = extractCategory(question)
+        const prevCategory = index > 0 ? extractCategory(questions[index - 1]) : null
+        const isCategoryStart = category !== prevCategory
+
         const isSaved = savedQuestions.has(question.id)
         const isSaving = savingQuestion === question.id
         const isGapIso = question.type?.toLowerCase() === "gap_iso"
@@ -687,60 +771,84 @@ export function QuestionnaireForm({
         const isLocked = isQuestionLocked(question)
         const hasPendingRevision = hasRevisionPending(question)
         const isSubmittingCorrection = submittingCorrection === question.id
+        const isCollapsed = collapsedQuestions.has(question.id)
 
         return (
+          <Fragment key={question.id}>
+            {/* Âncora invisível para scroll da sidebar */}
+            {isCategoryStart && (
+              <div
+                id={`category-${slugifyCategory(category)}`}
+                className="scroll-mt-24"
+                aria-hidden="true"
+              />
+            )}
           <Card
-            key={question.id}
             className={`transition-all ${
               isLocked
                 ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/20"
                 : "border-border/50 bg-card hover:border-primary/30 hover:shadow-lg dark:border-border dark:hover:border-primary/50"
             }`}
           >
-            <CardHeader className="space-y-4 pb-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-4">
+            <CardHeader className={cn("space-y-4", isCollapsed ? "pb-5" : "pb-4")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-4 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary" className="text-xs font-medium">
                       Questão {questionNumber}
                     </Badge>
                     {isLocked && (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Aprovada
                       </Badge>
                     )}
                     {answerStatus === "corrigido" && !isLocked && (
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Correção Enviada
                       </Badge>
                     )}
                     {hasPendingRevision && !isLocked && answerStatus !== "corrigido" && (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
                         <AlertTriangle className="h-3 w-3 mr-1" />
                         Ajuste Solicitado
                       </Badge>
                     )}
                     {answerStatus === "reenviado" && (
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">Reenviado</Badge>
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">Reenviado</Badge>
                     )}
                     {isSaved && !isLocked && !hasPendingRevision && (
-                      <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+                      <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/40">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Respondida
                       </Badge>
                     )}
                   </div>
 
-                  <h1 className="text-2xl font-bold leading-tight text-foreground">{question.label}</h1>
+                  <h3 className="text-xl font-bold leading-tight text-foreground">{question.label}</h3>
 
-                  {question.metadata?.obs && (
-                    <h2 className="text-base font-normal text-muted-foreground leading-relaxed">
+                  {!isCollapsed && question.metadata?.obs && (
+                    <p className="text-base font-normal text-muted-foreground leading-relaxed">
                       {question.metadata.obs}
-                    </h2>
+                    </p>
                   )}
                 </div>
+
+                {/* Botão de collapse */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => toggleCollapsed(question.id)}
+                  aria-label={isCollapsed ? "Expandir questão" : "Minimizar questão"}
+                  className="mt-0.5 shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground"
+                >
+                  {isCollapsed ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
 
               {hasPendingRevision && !isLocked && answerStatus !== "corrigido" && (
@@ -833,6 +941,15 @@ export function QuestionnaireForm({
                 </div>
               )}
             </CardHeader>
+
+            {/* Corpo do card com animação de collapse via CSS grid */}
+            <div
+              className={cn(
+                "grid transition-all duration-300 ease-in-out",
+                isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+              )}
+            >
+              <div className="overflow-hidden">
             <CardContent className="space-y-4">
               {isGestor && userAnswers.length > 0 ? (
                 // Visão do Gestor - Mostrar respostas dos usuários (EXATAMENTE como aparecem para o usuário)
@@ -1023,6 +1140,7 @@ export function QuestionnaireForm({
                     answerStatus={answerStatus}
                     userRole={userRole}
                     isGestor={isGestor}
+                    anoReferencia={currentYear}
                     onUpdate={() => {
                       toast.success("Atualização salva")
                     }}
@@ -1078,6 +1196,13 @@ export function QuestionnaireForm({
                       <div className={!isGapIso && (isSaved || isLocked) ? "opacity-60 pointer-events-none" : ""}>
                         {renderQuestionInput(question)}
                       </div>
+                      {existingAnswers[question.id]?.last_edited_by_name && (
+                        <p className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <User className="h-3 w-3 shrink-0" />
+                          Última edição por{" "}
+                          <span className="font-medium">{existingAnswers[question.id].last_edited_by_name}</span>
+                        </p>
+                      )}
                       {!isGapIso && previousYearAnswers[question.id] && (
                         <p className="mt-1.5 text-xs text-muted-foreground border-l-2 border-muted pl-2">
                           Sua resposta em {currentYear - 1}:{" "}
@@ -1218,6 +1343,7 @@ export function QuestionnaireForm({
                     answerStatus={answerStatus}
                     userRole={userRole}
                     isGestor={isGestor}
+                    anoReferencia={currentYear}
                     onUpdate={() => {
                       // Refresh local state instead of reloading
                       toast.success("Atualização salva")
@@ -1226,7 +1352,10 @@ export function QuestionnaireForm({
                 </div>
               )}
             </CardContent>
+              </div>
+            </div>
           </Card>
+          </Fragment>
         )
       })}
     </div>

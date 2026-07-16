@@ -167,7 +167,7 @@ export function CadernosGestaoClient({
     
     const companyAvailableTemplates = getCompanyTemplates(companyId)
     const assignedTemplateIds = getUserAssignments(userId)
-      .filter((a) => a.organization_id === companyId) // Only templates assigned for this company
+      .filter((a) => a.company_id === companyId) // Only templates assigned for this company
       .map((a) => a.caderno_id)
     
     return companyAvailableTemplates.filter((t) => !assignedTemplateIds.includes(t.id))

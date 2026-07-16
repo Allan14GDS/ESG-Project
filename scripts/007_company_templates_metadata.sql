@@ -1,0 +1,59 @@
+-- =============================================================================
+-- Migration 007: Personalização Avançada de Cadernos por Empresa
+-- Objetivo: Adicionar suporte a customizações específicas por empresa em uma
+--           atribuição de caderno (company_templates), sem alterar o template
+--           global que é compartilhado com todas as outras empresas.
+--
+-- CONCEITO DO MODELO DE PERSONALIZAÇÃO:
+--   A tabela book_templates define o caderno "canônico" (perguntas, estrutura,
+--   pesos GRI/ISO). A tabela company_templates é a junção entre esse template
+--   global e uma empresa específica.
+--
+--   A nova coluna `metadata` nesta junção é o espaço seguro para overrides
+--   locais — regras que valem apenas para "Empresa X no Caderno GRI 2026",
+--   sem contaminar o template que outras 30 empresas também utilizam.
+--
+-- CASOS DE USO PREVISTOS PARA O FRONTEND (Fase 4 de UX/UI):
+--   - hidden_questions: string[]
+--       Lista de question_ids que devem ser ocultadas na visão desta empresa.
+--       Ex: { "hidden_questions": ["uuid-q1", "uuid-q2"] }
+--
+--   - question_weights: Record<string, number>
+--       Override de peso de uma pergunta específica para esta empresa.
+--       Ex: { "question_weights": { "uuid-q3": 2.5 } }
+--
+--   - company_notes: Record<string, string>
+--       Notas/orientações internas visíveis apenas para os colaboradores
+--       desta empresa em uma pergunta específica do caderno.
+--       Ex: { "company_notes": { "uuid-q4": "Consultar o relatório CBIO 2025" } }
+--
+--   - required_overrides: string[]
+--       Perguntas opcionais no template global que esta empresa marca como
+--       obrigatórias internamente.
+--       Ex: { "required_overrides": ["uuid-q5"] }
+--
+--   O schema do JSONB é intencional e livre para evitar migrações a cada novo
+--   tipo de customização. A validação da estrutura acontece na camada de
+--   aplicação (TypeScript/Zod), não no banco.
+--
+-- Autor: b.kick Platform
+-- Data: 2026-07-15
+-- =============================================================================
+
+ALTER TABLE public.company_templates
+  ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+
+-- ─── VERIFICAÇÃO PÓS-MIGRATION ────────────────────────────────────────────────
+-- Execute no SQL Editor do Supabase para confirmar a coluna:
+--
+-- SELECT column_name, data_type, column_default, is_nullable
+-- FROM information_schema.columns
+-- WHERE table_schema = 'public'
+--   AND table_name   = 'company_templates'
+--   AND column_name  = 'metadata';
+--
+-- Resultado esperado:
+--   column_name | data_type | column_default  | is_nullable
+--   metadata    | jsonb     | '{}'::jsonb     | NO
+-- =============================================================================

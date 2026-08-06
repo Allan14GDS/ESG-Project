@@ -63,6 +63,7 @@ interface ExistingAnswer {
   status?: string
   value_jsonb?: any
   last_edited_by_name?: string | null
+  last_edited_at?: string | null
 }
 
 interface QuestionnaireFormProps {
@@ -1201,6 +1202,20 @@ export function QuestionnaireForm({
                           <User className="h-3 w-3 shrink-0" />
                           Última edição por{" "}
                           <span className="font-medium">{existingAnswers[question.id].last_edited_by_name}</span>
+                          {existingAnswers[question.id].last_edited_at && (
+                            <>
+                              {" "}em{" "}
+                              <span className="font-medium">
+                                {new Intl.DateTimeFormat("pt-BR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }).format(new Date(existingAnswers[question.id].last_edited_at!))}
+                              </span>
+                            </>
+                          )}
                         </p>
                       )}
                       {!isGapIso && previousYearAnswers[question.id] && (

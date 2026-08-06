@@ -347,7 +347,12 @@ export default async function MeusCadernosPage({
         }
       })
 
-      const cadernosForCompany = [...companyCadernos, ...holdingCadernosForCompany]
+      // Prefer company-level assignment over holding-level expansion when the same template appears twice
+      const companyCadernoIds = new Set(companyCadernos.map((c) => c.id))
+      const uniqueHoldingCadernos = holdingCadernosForCompany.filter(
+        (c) => !companyCadernoIds.has(c.id)
+      )
+      const cadernosForCompany = [...companyCadernos, ...uniqueHoldingCadernos]
 
       return {
         ...company,

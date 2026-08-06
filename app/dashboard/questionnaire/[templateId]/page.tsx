@@ -204,7 +204,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   // CORREÇÃO: Remover JOIN problemático que causa erro "more than one relationship"
   let answersQuery = adminClient
     .from("book_answers")
-    .select("id, question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id")
+    .select("id, question_id, value, value_jsonb, evidence_url, status, user_id, company_id, holding_id, updated_at, created_at")
     .eq("template_id", templateId)
     .eq("ano_referencia", currentYear)
 
@@ -283,7 +283,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
   const answersByQuestion: Record<string, any[]> = {}
   const responsesMap: Record<
     string,
-    { value: string; evidence_url?: string; status?: string; value_jsonb?: any; last_edited_by_name?: string | null }
+    { value: string; evidence_url?: string; status?: string; value_jsonb?: any; last_edited_by_name?: string | null; last_edited_at?: string | null }
   > = {}
 
   if (existingAnswers) {
@@ -312,6 +312,7 @@ export default async function QuestionnairePage({ params, searchParams }: PagePr
         value_jsonb: answer.value_jsonb || null,
         last_edited_by_name:
           answer.profiles?.full_name || answer.profiles?.email || null,
+        last_edited_at: answer.updated_at || answer.created_at || null,
       }
         
         console.log("[v0] Mapeando resposta:", {

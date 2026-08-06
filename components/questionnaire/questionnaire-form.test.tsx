@@ -215,6 +215,57 @@ describe("QuestionnaireForm", () => {
 
       expect(screen.getByText("joao@empresa.com")).toBeInTheDocument()
     })
+
+    it("exibe a data formatada em pt-BR quando last_edited_at está presente", () => {
+      renderForm({
+        existingAnswers: {
+          q1: {
+            value: "Resposta existente",
+            status: "rascunho",
+            last_edited_by_name: "danibkick@gmail.com",
+            last_edited_at: "2026-08-06T14:30:00.000Z",
+          },
+        },
+      })
+
+      expect(screen.getByText(/Última edição por/i)).toBeInTheDocument()
+      expect(screen.getByText("danibkick@gmail.com")).toBeInTheDocument()
+      // A data deve ser formatada em algum formato dd/mm/yyyy com hora
+      expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeInTheDocument()
+    })
+
+    it("não exibe a data quando last_edited_at é nulo, mesmo com nome presente", () => {
+      renderForm({
+        existingAnswers: {
+          q1: {
+            value: "Resposta existente",
+            status: "rascunho",
+            last_edited_by_name: "Carlos Souza",
+            last_edited_at: null,
+          },
+        },
+      })
+
+      expect(screen.getByText(/Última edição por/i)).toBeInTheDocument()
+      expect(screen.getByText("Carlos Souza")).toBeInTheDocument()
+      // Nenhum padrão de data deve aparecer
+      expect(screen.queryByText(/\d{2}\/\d{2}\/\d{4}/)).not.toBeInTheDocument()
+    })
+
+    it("não exibe a data quando last_edited_at está ausente (undefined)", () => {
+      renderForm({
+        existingAnswers: {
+          q1: {
+            value: "Resposta existente",
+            status: "rascunho",
+            last_edited_by_name: "Ana Lima",
+          },
+        },
+      })
+
+      expect(screen.getByText("Ana Lima")).toBeInTheDocument()
+      expect(screen.queryByText(/\d{2}\/\d{2}\/\d{4}/)).not.toBeInTheDocument()
+    })
   })
 
   describe("Estado de salvamento por questão", () => {
